@@ -6,6 +6,7 @@ import { CleanAssistant } from "@/components/CleanAssistant";
 import { useApp, CleanItem, ExtendedShoppingItem } from "@/context/AppContext";
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { buildShoppingListText, shareText } from "@/utils/share";
+import { getCurrentWeekDateKeys } from "@/utils/date";
 
 export default function ShoppingScreen() {
   const {
@@ -33,7 +34,11 @@ export default function ShoppingScreen() {
   const [showReserve, setShowReserve] = useState(false);
   const [showDone, setShowDone] = useState(false);
 
-  const plannedCount = useMemo(() => Object.values(data.weekPlan).filter(Boolean).length, [data.weekPlan]);
+  const currentWeekKeys = useMemo(() => getCurrentWeekDateKeys(), []);
+  const plannedCount = useMemo(
+    () => currentWeekKeys.filter((k) => data.weekPlan[k]).length,
+    [currentWeekKeys, data.weekPlan]
+  );
 
   const foodItems = data.shoppingList.filter((i) => !(i as ExtendedShoppingItem).isExtra);
   const foodTodo = foodItems.filter((i) => !i.checked);
@@ -56,7 +61,7 @@ export default function ShoppingScreen() {
 
   const ingredientToDishesMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    const plannedDishIds = Object.values(data.weekPlan).filter(Boolean).map((p) => p!.dishId);
+    const plannedDishIds = currentWeekKeys.map((k) => data.weekPlan[k]).filter(Boolean).map((p) => p!.dishId);
     plannedDishIds.forEach((dishId) => {
       const dish = data.dishes.find((d) => d.id === dishId);
       if (!dish) return;
@@ -67,7 +72,7 @@ export default function ShoppingScreen() {
       });
     });
     return map;
-  }, [data.weekPlan, data.dishes, data.ingredients]);
+  }, [currentWeekKeys, data.weekPlan, data.dishes, data.ingredients]);
 
   const handleGenerate = () => {
     if (plannedCount === 0) { Alert.alert("Semaine vide", "Planifiez au moins un repas dans l'onglet Semainier avant de générer la liste."); return; }

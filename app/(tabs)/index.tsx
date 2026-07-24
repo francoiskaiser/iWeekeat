@@ -6,8 +6,7 @@ import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { DAYS } from "@/constants";
-import { DayKey } from "@/types";
+import { getCurrentWeekDateKeys, toDateKey } from "@/utils/date";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -25,22 +24,25 @@ export default function HomeScreen() {
   const initials = firstName.substring(0, 2).toUpperCase();
 
   // --- Date & repas du jour ---
-  const today = new Date();
-  const mondayOffset = (today.getDay() + 6) % 7; // 0 = lundi
-  const todayKey: DayKey = DAYS[mondayOffset].key;
+  const today = useMemo(() => new Date(), []);
+  const todayKey = toDateKey(today);
   const dateLabel = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const dateLabelCap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
 
   const todayPlan = data.weekPlan[todayKey];
   const todayDish = todayPlan ? data.dishes.find((d) => d.id === todayPlan.dishId) : null;
 
-  // --- Compteurs ---
-  const plannedCount = useMemo(() => Object.values(data.weekPlan).filter(Boolean).length, [data.weekPlan]);
+  // --- Compteurs (semaine en cours uniquement) ---
+  const currentWeekKeys = useMemo(() => getCurrentWeekDateKeys(today), [today]);
+  const plannedCount = useMemo(
+    () => currentWeekKeys.filter((k) => data.weekPlan[k]).length,
+    [currentWeekKeys, data.weekPlan]
+  );
   const shoppingCount = data.shoppingList.filter((i) => !i.checked).length;
   const shoppingChecked = data.shoppingList.filter((i) => i.checked).length;
   const dishCount = data.dishes.length;
   const catCount = data.categories.length;
-  const progressPct = Math.round((plannedCount / 7) * 100);
+  const progressPct = Math.round((plannedCount / currentWeekKeys.length) * 100);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
@@ -75,12 +77,12 @@ export default function HomeScreen() {
         {/* CARTE PROGRESSION SEMAINE */}
         <TouchableOpacity activeOpacity={0.8} style={[styles.weekCard, { backgroundColor: cardBgColor }]} onPress={() => router.push('/planner')}>
           <View style={[styles.weekRing, { backgroundColor: '#FF7A4115' }]}>
-            <Text style={styles.weekRingText}>{plannedCount}/7</Text>
+            <Text style={styles.weekRingText}>{plannedCount}/{currentWeekKeys.length}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.weekTitle, { color: textColor }]}>Ta semaine</Text>
             <Text style={[styles.weekSub, { color: subTextColor }]}>
-              {plannedCount >= 7 ? "Semaine complète 🎉" : `${7 - plannedCount} jour(s) sans repas`}
+              {plannedCount >= currentWeekKeys.length ? "Semaine complète 🎉" : `${currentWeekKeys.length - plannedCount} jour(s) sans repas`}
             </Text>
             <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
               <View style={[styles.progressFill, { width: `${progressPct}%` }]} />

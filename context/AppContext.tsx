@@ -1,9 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { DAYS } from "@/constants";
-import { AppData, Category, DayKey, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
-import { createEmptyWeekPlan, generateId, generateShoppingList } from "@/utils/helpers";
+import { AppData, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
+import { generateId, generateShoppingList } from "@/utils/helpers";
 import { loadAppData, saveAppData } from "@/utils/storage";
+import { getCurrentWeekDateKeys } from "@/utils/date";
 
 import { useAuth } from "./AuthContext";
 
@@ -27,7 +27,7 @@ interface AppContextValue {
   addIngredient: (dishId: string, name: string) => void;
   updateIngredient: (id: string, name: string) => void;
   deleteIngredient: (id: string) => void;
-  setDayPlan: (day: DayKey, plan: DayPlan | null) => void;
+  setDayPlan: (dateKey: string, plan: DayPlan | null) => void;
   generateList: () => void;
   toggleShoppingItem: (id: string) => void;
   removeShoppingItem: (id: string) => void;
@@ -35,8 +35,8 @@ interface AppContextValue {
   deleteExtraByName: (name: string) => void;
   startCleanMode: () => CleanItem[];
   applyCleanResults: (remainingItems: CleanItem[]) => void;
-  resetWeekPlan: () => void;
-  randomizeWeek: () => void;
+  resetWeekPlan: (dateKeys: string[]) => void;
+  randomizeWeek: (dateKeys: string[]) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -85,8 +85,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist((prev) => {
       const dishIds = prev.dishes.filter((d) => d.categoryId === id).map((d) => d.id);
       const newWeekPlan = { ...prev.weekPlan };
-      for (const day of Object.keys(newWeekPlan) as DayKey[]) {
-        if (newWeekPlan[day]?.categoryId === id) newWeekPlan[day] = null;
+      for (const dateKey of Object.keys(newWeekPlan)) {
+        if (newWeekPlan[dateKey]?.categoryId === id) newWeekPlan[dateKey] = null;
       }
       return {
         ...prev,
@@ -113,8 +113,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteDish = useCallback((id: string) => {
     persist((prev) => {
       const newWeekPlan = { ...prev.weekPlan };
-      for (const day of Object.keys(newWeekPlan) as DayKey[]) {
-        if (newWeekPlan[day]?.dishId === id) newWeekPlan[day] = null;
+      for (const dateKey of Object.keys(newWeekPlan)) {
+        if (newWeekPlan[dateKey]?.dishId === id) newWeekPlan[dateKey] = null;
       }
       return {
         ...prev,
@@ -141,13 +141,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist((prev) => ({ ...prev, ingredients: prev.ingredients.filter((i) => i.id !== id) }));
   }, [persist]);
 
-  const setDayPlan = useCallback((day: DayKey, plan: DayPlan | null) => {
-    persist((prev) => ({ ...prev, weekPlan: { ...prev.weekPlan, [day]: plan }, shoppingListGenerated: false }));
+  const setDayPlan = useCallback((dateKey: string, plan: DayPlan | null) => {
+    persist((prev) => {
+      const invalidatesShopping = getCurrentWeekDateKeys().includes(dateKey);
+      return {
+        ...prev,
+        weekPlan: { ...prev.weekPlan, [dateKey]: plan },
+        shoppingListGenerated: invalidatesShopping ? false : prev.shoppingListGenerated,
+      };
+    });
   }, [persist]);
 
   const generateList = useCallback(() => {
     persist((prev) => {
-      const foodItems = generateShoppingList(prev).map(
+      const foodItems = generateShoppingList(prev, getCurrentWeekDateKeys()).map(
         (item): ExtendedShoppingItem => ({ ...item, checked: false, isExtra: false })
       );
       const extraItems = prev.shoppingList.filter((i) => (i as ExtendedShoppingItem).isExtra);
@@ -242,26 +249,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [persist]);
 
-  const resetWeekPlan = useCallback(() => {
-    persist((prev) => ({ ...prev, weekPlan: createEmptyWeekPlan(), shoppingList: [], shoppingListGenerated: false }));
+  const resetWeekPlan = useCallback((dateKeys: string[]) => {
+    persist((prev) => {
+      const newWeekPlan = { ...prev.weekPlan };
+      for (const dateKey of dateKeys) newWeekPlan[dateKey] = null;
+
+      const touchesCurrentWeek = dateKeys.some((k) => getCurrentWeekDateKeys().includes(k));
+      return {
+        ...prev,
+        weekPlan: newWeekPlan,
+        shoppingList: touchesCurrentWeek ? [] : prev.shoppingList,
+        shoppingListGenerated: touchesCurrentWeek ? false : prev.shoppingListGenerated,
+      };
+    });
   }, [persist]);
 
-  const randomizeWeek = useCallback(() => {
+  const randomizeWeek = useCallback((dateKeys: string[]) => {
     persist((prev) => {
-      const allDishes = [...prev.dishes];
-      const shuffledDishes = allDishes.sort(() => 0.5 - Math.random());
-      const newWeekPlan: Record<string, any> = {};
-      
-      DAYS.forEach((day, index) => {
-        const dish = shuffledDishes.length > 0 ? shuffledDishes[index % shuffledDishes.length] : null;
-        if (dish) {
-          newWeekPlan[day.key] = { categoryId: dish.categoryId, dishId: dish.id };
-        } else {
-            newWeekPlan[day.key] = null;
-        }
+      if (prev.dishes.length === 0) return prev;
+      const shuffledDishes = [...prev.dishes].sort(() => 0.5 - Math.random());
+      const newWeekPlan = { ...prev.weekPlan };
+
+      dateKeys.forEach((dateKey, index) => {
+        const dish = shuffledDishes[index % shuffledDishes.length];
+        newWeekPlan[dateKey] = { categoryId: dish.categoryId, dishId: dish.id };
       });
 
-      return { ...prev, weekPlan: newWeekPlan as Record<DayKey, DayPlan | null>, shoppingListGenerated: false };
+      const touchesCurrentWeek = dateKeys.some((k) => getCurrentWeekDateKeys().includes(k));
+      return {
+        ...prev,
+        weekPlan: newWeekPlan,
+        shoppingListGenerated: touchesCurrentWeek ? false : prev.shoppingListGenerated,
+      };
     });
   }, [persist]);
 

@@ -14,23 +14,19 @@ type ShareData = {
   shoppingList: ShoppingItem[];
 };
 
-const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-const DAY_LABELS: Record<string, string> = {
-  monday: "Lundi", tuesday: "Mardi", wednesday: "Mercredi", thursday: "Jeudi",
-  friday: "Vendredi", saturday: "Samedi", sunday: "Dimanche",
-};
+type ShareWeekDay = { dateKey: string; label: string };
 
 // WhatsApp interprète *texte* en gras et _texte_ en italique
-export function buildWeekMenuText(data: ShareData): string {
+export function buildWeekMenuText(weekDays: ShareWeekDay[], data: ShareData): string {
   const lines: string[] = ["🍽️ *Menu de la semaine*", ""];
-  for (const key of DAY_ORDER) {
-    const plan = data.weekPlan[key];
+  for (const { dateKey, label } of weekDays) {
+    const plan = data.weekPlan[dateKey];
     let meal = "—";
     if (plan) {
       const dish = data.dishes.find((d) => d.id === plan.dishId);
       if (dish) meal = dish.name;
     }
-    lines.push(`${DAY_LABELS[key]} : ${meal}`);
+    lines.push(`${label} : ${meal}`);
   }
   lines.push("", "_Envoyé depuis MealHelper_");
   return lines.join("\n");

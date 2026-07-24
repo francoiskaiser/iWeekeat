@@ -1,15 +1,7 @@
-import { AppData, DayKey, WeekPlan } from "@/types";
+import { AppData, WeekPlan } from "@/types";
 
 export function createEmptyWeekPlan(): WeekPlan {
-  return {
-    monday: null,
-    tuesday: null,
-    wednesday: null,
-    thursday: null,
-    friday: null,
-    saturday: null,
-    sunday: null,
-  };
+  return {};
 }
 
 export function createDefaultData(): AppData {
@@ -49,11 +41,11 @@ export function normalizeIngredientName(name: string): string {
   return name.trim().toLowerCase();
 }
 
-export function generateShoppingList(data: AppData): { id: string; name: string }[] {
+export function generateShoppingList(data: AppData, dateKeys: string[]): { id: string; name: string }[] {
   const seen = new Map<string, string>();
 
-  for (const day of Object.keys(data.weekPlan) as DayKey[]) {
-    const plan = data.weekPlan[day];
+  for (const dateKey of dateKeys) {
+    const plan = data.weekPlan[dateKey];
     if (!plan) continue;
 
     const dishIngredients = data.ingredients.filter((i) => i.dishId === plan.dishId);

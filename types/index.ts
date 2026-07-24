@@ -29,7 +29,9 @@ export interface DayPlan {
   dishId: string;
 }
 
-export type WeekPlan = Record<DayKey, DayPlan | null>;
+// Clé = date ISO "YYYY-MM-DD" (pas le jour de semaine) pour distinguer
+// une semaine réelle d'une autre et permettre de préparer la suivante à l'avance.
+export type WeekPlan = Record<string, DayPlan | null>;
 
 export interface ShoppingItem {
   id: string;
