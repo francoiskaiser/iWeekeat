@@ -1,15 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppData } from '@/types';
-import { createEmptyWeekPlan } from './helpers';
-
-const defaultData: AppData = {
-  categories: [],
-  dishes: [],
-  ingredients: [],
-  weekPlan: createEmptyWeekPlan(),
-  shoppingList: [],
-  shoppingListGenerated: false,
-};
+import { createDefaultData } from './helpers';
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -33,11 +24,11 @@ export const loadAppData = async (groupId: string): Promise<AppData> => {
   const STORAGE_KEY = `@meal_helper_data_${groupId}`;
   try {
     const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
-    if (jsonValue == null) return defaultData;
+    if (jsonValue == null) return createDefaultData();
     return migrateLegacyWeekPlan(JSON.parse(jsonValue));
   } catch (e) {
     console.error('Erreur de lecture locale :', e);
-    return defaultData;
+    return createDefaultData();
   }
 };
 

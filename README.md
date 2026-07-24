@@ -63,6 +63,7 @@ MealHelper/
 - Créer / modifier / supprimer des **catégories** (Pâtes, Riz…)
 - Ajouter des **plats** par catégorie
 - Ajouter des **ingrédients** par plat
+- Données d'exemple préchargées au premier lancement
 
 ### 2. Planificateur
 - 7 jours (Lundi → Dimanche)
