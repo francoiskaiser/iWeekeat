@@ -1,8 +1,7 @@
 import { Modal, StyleSheet, Text, View, TouchableOpacity, SafeAreaView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-// On importe notre nouveau type
 import { CleanItem } from "@/context/AppContext";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface CleanAssistantProps {
   visible: boolean;
@@ -21,6 +20,8 @@ export function CleanAssistant({
   onNeedIt,
   onCancel,
 }: CleanAssistantProps) {
+  const { background, text, subText, card, border } = useThemeColors();
+
   if (!item) return null;
 
   const progressPercent = Math.round((progress.current / progress.total) * 100);
@@ -34,37 +35,37 @@ export function CleanAssistant({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
         <View style={styles.container}>
-          
+
           <View style={styles.header}>
             <View style={[styles.badgeContainer, { backgroundColor: themeColor + '15' }]}>
               <Ionicons name="scan-outline" size={16} color={themeColor} />
               <Text style={[styles.badgeText, { color: themeColor }]}>Inventaire en cours</Text>
             </View>
-            
+
             <TouchableOpacity onPress={onCancel} style={styles.closeBtn} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
               <Ionicons name="close-circle" size={32} color="#cbd5e1" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.progressSection}>
-            <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarBg, { backgroundColor: border }]}>
               <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: themeColor }]} />
             </View>
-            <Text style={styles.progressText}>
+            <Text style={[styles.progressText, { color: subText }]}>
               Article {progress.current} sur {progress.total}
             </Text>
           </View>
 
           <View style={styles.body}>
-            <View style={[styles.iconWrapper, { shadowColor: themeColor }]}>
+            <View style={[styles.iconWrapper, { shadowColor: themeColor, backgroundColor: card }]}>
               <Ionicons name={iconName} size={60} color={themeColor} />
             </View>
-            
-            <Text style={styles.question}>{questionText}</Text>
-            <Text style={styles.ingredient}>{item.name}</Text>
-            <Text style={styles.question}>{locationText}</Text>
+
+            <Text style={[styles.question, { color: subText }]}>{questionText}</Text>
+            <Text style={[styles.ingredient, { color: text }]}>{item.name}</Text>
+            <Text style={[styles.question, { color: subText }]}>{locationText}</Text>
           </View>
 
           <View style={styles.actions}>
@@ -74,7 +75,7 @@ export function CleanAssistant({
               activeOpacity={0.7}
             >
               <Ionicons name="checkmark-circle-outline" size={24} color="#fff" />
-              <Text style={styles.btnHaveItText}>Oui, j'en ai déjà !</Text>
+              <Text style={styles.btnHaveItText}>Oui, j&apos;en ai déjà !</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -83,7 +84,7 @@ export function CleanAssistant({
               activeOpacity={0.7}
             >
               <Ionicons name="cart-outline" size={24} color={themeColor} />
-              <Text style={[styles.btnNeedItText, { color: themeColor }]}>Non, il faut l'acheter</Text>
+              <Text style={[styles.btnNeedItText, { color: themeColor }]}>Non, il faut l&apos;acheter</Text>
             </TouchableOpacity>
           </View>
 
@@ -96,7 +97,6 @@ export function CleanAssistant({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFBF5',
   },
   container: {
     flex: 1,
@@ -132,7 +132,6 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: '#e2e8f0',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 10,
@@ -143,7 +142,6 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
-    color: "#64748b",
     fontWeight: "600",
     textAlign: 'right',
   },
@@ -158,7 +156,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 30,
-    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -169,14 +166,12 @@ const styles = StyleSheet.create({
   },
   question: {
     fontSize: 20,
-    color: "#64748b",
     textAlign: "center",
     fontWeight: '500',
   },
   ingredient: {
     fontSize: 36,
     fontWeight: "800",
-    color: "#1e293b",
     textAlign: "center",
     marginVertical: 15,
     letterSpacing: -0.5,

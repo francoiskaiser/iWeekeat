@@ -123,6 +123,8 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
   );
 });
 
+NativePicker.displayName = 'NativePicker';
+
 const styles = StyleSheet.create({
   container: {
     marginBottom: 15,

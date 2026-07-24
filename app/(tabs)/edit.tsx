@@ -3,18 +3,20 @@ import { ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from "@/context/AppContext";
-import { useTheme } from '@/context/ThemeContext';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 type EditLevel = "categories" | "dishes" | "ingredients";
 
 export default function EditScreen() {
-  const { isDarkMode } = useTheme();
+  const {
+    isDarkMode,
+    background: bgColor,
+    text: textColor,
+    card: cardBgColor,
+    subText: subTextColor,
+    border: borderColor,
+  } = useThemeColors();
 
-  const bgColor = isDarkMode ? '#1e293b' : '#FFFBF5';
-  const textColor = isDarkMode ? '#f8fafc' : '#1e293b';
-  const cardBgColor = isDarkMode ? '#334155' : '#fff';
-  const subTextColor = isDarkMode ? '#94a3b8' : '#64748b';
-  const borderColor = isDarkMode ? '#475569' : '#f1f5f9';
   const searchBg = isDarkMode ? '#0f172a' : '#f8fafc';
 
   const { data, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish, addIngredient, updateIngredient, deleteIngredient } = useApp();

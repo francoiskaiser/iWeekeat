@@ -1,15 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { COLORS, DAYS } from "@/constants";
+import { DAYS } from "@/constants";
 import { AppData, Category, DayKey, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
 import { createEmptyWeekPlan, generateId, generateShoppingList } from "@/utils/helpers";
-import { loadAppData, saveAppData } from "@/utils/storage";
+import { loadAppData, saveAppData } from "@/utils/storage";
 
-// L'import du contexte d'authentification
-import { useAuth } from "./AuthContext"; 
+import { useAuth } from "./AuthContext";
 
-// === LES TYPES QUI AVAIENT DISPARU SONT DE RETOUR ===
-type ExtendedShoppingItem = ShoppingItem & { isExtra?: boolean };
+export type ExtendedShoppingItem = ShoppingItem & { isExtra?: boolean };
 type ExtendedAppData = AppData & { recurringExtras?: string[] };
 
 export interface CleanItem {
@@ -42,21 +40,18 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-// ====================================================
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<ExtendedAppData | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // On récupère le profil de l'utilisateur connecté
-  const { user } = useAuth(); 
+
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return; 
-    
-    // On récupère le code de groupe secret caché dans le profil
+    if (!user) return;
+
     const groupId = user.user_metadata?.group_id || "LOCAL";
-    
+
     loadAppData(groupId).then((loaded) => {
       setData(loaded as ExtendedAppData);
       setLoading(false);
@@ -67,19 +62,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => {
       if (!prev) return prev;
       const next = updater(prev);
-      
+
       const groupId = user?.user_metadata?.group_id;
-      if (groupId) saveAppData(next, groupId); 
+      if (groupId) saveAppData(next, groupId);
       return next;
     });
   }, [user]);
 
-
-  // (Et tu laisses la suite de ton fichier avec updateCategory, deleteCategory, etc. comme avant !)
-
-  // --- FONCTIONS DE BASE ---
   const addCategory = useCallback((name: string) => {
-// ... GARDER TOUT LE RESTE DU FICHIER INTACT ...
     const trimmed = name.trim();
     if (!trimmed) return;
     persist((prev) => ({ ...prev, categories: [...prev.categories, { id: generateId("cat"), name: trimmed }] }));
@@ -294,8 +284,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   if (loading || !value) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: '#FFFBF5' }}>
+        <ActivityIndicator size="large" color="#FF7A41" />
       </View>
     );
   }

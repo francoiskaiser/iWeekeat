@@ -6,25 +6,24 @@ import { NativePicker, NativePickerRef } from "@/components/NativePicker";
 import { DAYS } from "@/constants";
 import { useApp } from "@/context/AppContext";
 import { DayKey } from "@/types";
-import { useTheme } from '@/context/ThemeContext';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { buildWeekMenuText, shareText } from "@/utils/share";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "default": "#FF7A41", "viande": "#FF7A41", "végétarien": "#10B981", "poisson": "#0EA5E9",
 };
-const CATEGORY_ICONS: Record<string, any> = {
-  "default": "restaurant-outline", "viande": "restaurant-outline", "végétarien": "leaf-outline", "poisson": "water-outline",
-};
 
 export default function PlannerScreen() {
-  const { isDarkMode } = useTheme();
+  const {
+    isDarkMode,
+    background: bgColor,
+    text: textColor,
+    card: cardBgColor,
+    subText: subTextColor,
+    border: borderColor,
+    track: trackColor,
+  } = useThemeColors();
 
-  const bgColor = isDarkMode ? '#1e293b' : '#FFFBF5';
-  const textColor = isDarkMode ? '#f8fafc' : '#1e293b';
-  const cardBgColor = isDarkMode ? '#334155' : '#fff';
-  const subTextColor = isDarkMode ? '#94a3b8' : '#64748b';
-  const borderColor = isDarkMode ? '#475569' : '#f1f5f9';
-  const trackColor = isDarkMode ? '#475569' : '#f1f5f9';
   const dashBg = isDarkMode ? '#33415555' : 'rgba(255,255,255,0.4)';
   const dashBorder = isDarkMode ? '#475569' : '#e2d9cf';
 

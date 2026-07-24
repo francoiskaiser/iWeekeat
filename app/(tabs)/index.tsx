@@ -1,13 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/utils/supabase";
-import Modal from 'react-native-modal';
-import { useTheme } from '@/context/ThemeContext';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { DAYS } from "@/constants";
 import { DayKey } from "@/types";
 
@@ -15,19 +13,16 @@ export default function HomeScreen() {
   const router = useRouter();
   const { data } = useApp();
   const { user } = useAuth();
-  const { isDarkMode } = useTheme();
-
-  const [isMenuVisible, setMenuVisible] = useState(false);
+  const {
+    background: backgroundColor,
+    text: textColor,
+    subText: subTextColor,
+    card: cardBgColor,
+    track: trackColor,
+  } = useThemeColors();
 
   const firstName = user?.user_metadata?.username || "Chef";
   const initials = firstName.substring(0, 2).toUpperCase();
-
-  // --- Couleurs dynamiques ---
-  const backgroundColor = isDarkMode ? '#1e293b' : '#FFFBF5';
-  const textColor = isDarkMode ? '#f8fafc' : '#1e293b';
-  const subTextColor = isDarkMode ? '#94a3b8' : '#64748b';
-  const cardBgColor = isDarkMode ? '#334155' : '#fff';
-  const trackColor = isDarkMode ? '#475569' : '#f1f5f9';
 
   // --- Date & repas du jour ---
   const today = new Date();
@@ -54,25 +49,10 @@ export default function HomeScreen() {
           <Text style={styles.eyebrow}>{dateLabelCap}</Text>
           <Text style={[styles.title, { color: textColor }]}>Bonjour {firstName}</Text>
         </View>
-        <TouchableOpacity style={styles.profileBadge} onPress={() => setMenuVisible(true)} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.profileBadge} onPress={() => router.push('/settings')} activeOpacity={0.7}>
           <Text style={styles.profileInitials}>{initials}</Text>
         </TouchableOpacity>
       </View>
-
-      {/* MENU DÉROULANT */}
-      <Modal isVisible={isMenuVisible} onBackdropPress={() => setMenuVisible(false)} animationIn="fadeIn" animationOut="fadeOut">
-        <View style={[styles.menuContent, { backgroundColor: cardBgColor }]}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); router.push('/settings'); }}>
-            <Ionicons name="settings-outline" size={20} color={textColor} />
-            <Text style={[styles.menuText, { color: textColor }]}>Paramètres</Text>
-          </TouchableOpacity>
-          <View style={[styles.divider, { backgroundColor: trackColor }]} />
-          <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); supabase.auth.signOut(); }}>
-            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-            <Text style={[styles.menuText, { color: '#ef4444' }]}>Se déconnecter</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
@@ -141,10 +121,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   profileBadge: { backgroundColor: '#1e293b', width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   profileInitials: { color: '#fff', fontWeight: '800' },
-  menuContent: { borderRadius: 20, padding: 20, marginHorizontal: 50 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  menuText: { fontSize: 16, marginLeft: 10, fontWeight: '600' },
-  divider: { height: 1, marginVertical: 10 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 110 },
 
   tonightCard: { backgroundColor: '#FF7A41', borderRadius: 26, padding: 22, marginBottom: 14 },

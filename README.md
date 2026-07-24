@@ -42,34 +42,37 @@ npm run web
 ```
 MealHelper/
 ├── app/                    # Expo Router — écrans
-│   ├── _layout.tsx         # Layout racine + provider
+│   ├── _layout.tsx         # Layout racine + providers (Auth, Theme)
+│   ├── settings.tsx        # Réglages (mode sombre)
 │   └── (tabs)/
-│       ├── index.tsx       # Planificateur semainier
-│       ├── edit.tsx        # Mode édition (catégories/plats/ingrédients)
+│       ├── index.tsx       # Accueil / tableau de bord
+│       ├── planner.tsx     # Planificateur semainier
+│       ├── edit.tsx        # Garde-manger (catégories/plats/ingrédients)
 │       └── shopping.tsx    # Liste de courses + mode Clean
 ├── components/             # Composants UI réutilisables
 ├── context/                # État global + persistance AsyncStorage
-├── constants/              # Couleurs, jours, styles
+├── constants/              # Jours de la semaine
+├── hooks/                  # Hooks partagés (couleurs de thème)
 ├── types/                  # Modèles TypeScript
 └── utils/                  # Stockage et logique métier
 ```
 
 ## Fonctionnalités
 
-### 1. Mode Édition
+### 1. Garde-manger (édition)
 - Créer / modifier / supprimer des **catégories** (Pâtes, Riz…)
 - Ajouter des **plats** par catégorie
 - Ajouter des **ingrédients** par plat
-- Données d'exemple préchargées au premier lancement
 
 ### 2. Planificateur
 - 7 jours (Lundi → Dimanche)
 - Sélection en cascade : **Catégorie** → **Plat**
-- Validation par jour
+- Menu aléatoire, partage du menu par message
 
 ### 3. Liste de courses
 - Bouton **Générer** : agrège les ingrédients de la semaine
 - **Dédoublonnage** automatique (ex. « Crème » une seule fois)
+- Rayon « Côté Maison » pour les indispensables non alimentaires
 
 ### 4. Mode Clean (inventaire)
 - Parcourt chaque ingrédient un par un
@@ -77,16 +80,18 @@ MealHelper/
 - « Non, à acheter » → conservé
 - Liste finale avec **cases à cocher** pour le supermarché
 
+### 5. Réglages
+- Mode sombre
+
 ## Stockage local
 
-Les données sont persistées via `@react-native-async-storage/async-storage` entre chaque ouverture de l'app.
+L'application fonctionne 100% hors-ligne. Toutes les données sont persistées sur l'appareil via `@react-native-async-storage/async-storage` — il n'y a pas de compte ni de synchronisation entre appareils.
 
 ## Stack technique
 
-- React Native 0.76 + Expo SDK 52
+- React Native 0.81 + Expo SDK 54
 - Expo Router (navigation par onglets)
 - TypeScript
-- Composants natifs + `@react-native-picker/picker`
 - AsyncStorage pour la persistance
 
 ## Prochaines étapes possibles

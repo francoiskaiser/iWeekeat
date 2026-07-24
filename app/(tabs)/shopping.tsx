@@ -3,23 +3,25 @@ import { Alert, ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import { CleanAssistant } from "@/components/CleanAssistant";
-import { useApp, CleanItem } from "@/context/AppContext";
-import { useTheme } from '@/context/ThemeContext';
+import { useApp, CleanItem, ExtendedShoppingItem } from "@/context/AppContext";
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { buildShoppingListText, shareText } from "@/utils/share";
 
 export default function ShoppingScreen() {
-  const { isDarkMode } = useTheme();
+  const {
+    isDarkMode,
+    background: bgColor,
+    text: textColor,
+    card: cardBgColor,
+    subText: subTextColor,
+    border: borderColor,
+    track: trackColor,
+  } = useThemeColors();
 
-  const bgColor = isDarkMode ? '#1e293b' : '#FFFBF5';
-  const textColor = isDarkMode ? '#f8fafc' : '#1e293b';
-  const cardBgColor = isDarkMode ? '#334155' : '#fff';
-  const subTextColor = isDarkMode ? '#94a3b8' : '#64748b';
-  const borderColor = isDarkMode ? '#475569' : '#f1f5f9';
   const inputBgColor = isDarkMode ? '#0f172a' : '#f8fafc';
   const reserveBgColor = isDarkMode ? '#1e293b' : '#f8fafc';
   const tagBgColor = isDarkMode ? '#475569' : '#f1f5f9';
   const badgeBgColor = isDarkMode ? '#1e293b' : '#fff';
-  const trackColor = isDarkMode ? '#475569' : '#f1f5f9';
 
   const { data, generateList, toggleShoppingItem, removeShoppingItem, addExtraItem, deleteExtraByName, applyCleanResults, startCleanMode } = useApp();
 
@@ -33,10 +35,10 @@ export default function ShoppingScreen() {
 
   const plannedCount = useMemo(() => Object.values(data.weekPlan).filter(Boolean).length, [data.weekPlan]);
 
-  const foodItems = data.shoppingList.filter((i) => !(i as any).isExtra);
+  const foodItems = data.shoppingList.filter((i) => !(i as ExtendedShoppingItem).isExtra);
   const foodTodo = foodItems.filter((i) => !i.checked);
   const foodDone = foodItems.filter((i) => i.checked);
-  const activeExtraItems = data.shoppingList.filter((i) => (i as any).isExtra && !i.checked);
+  const activeExtraItems = data.shoppingList.filter((i) => (i as ExtendedShoppingItem).isExtra && !i.checked);
 
   const doneCount = foodDone.length;
   const totalCount = foodItems.length;

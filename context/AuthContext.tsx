@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// === VERSION 100% LOCALE (sans Supabase) ===
-// Il n'y a plus de connexion en ligne. Au premier lancement on crée
-// un "profil local" stocké sur le téléphone. L'app est donc toujours
-// considérée comme connectée -> on n'est jamais bloqué sur le login.
-
+// Profil local créé au premier lancement, stocké dans AsyncStorage — pas de compte distant.
 type LocalUser = {
   id: string;
   user_metadata: {
@@ -15,13 +11,11 @@ type LocalUser = {
 };
 
 type AuthContextType = {
-  session: { user: LocalUser } | null;
   user: LocalUser | null;
   initialized: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
-  session: null,
   user: null,
   initialized: false,
 });
@@ -62,10 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const session = user ? { user } : null;
-
   return (
-    <AuthContext.Provider value={{ session, user, initialized }}>
+    <AuthContext.Provider value={{ user, initialized }}>
       {children}
     </AuthContext.Provider>
   );
