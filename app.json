@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "MealHelper",
+    "slug": "mealhelper",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "mealhelper",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a7f5a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mealhelper.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a7f5a"
+      },
+      "package": "com.mealhelper.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "42c2e904-2c30-4202-8c1d-89358270b8c5"
+      }
+    }
+  }
+}
