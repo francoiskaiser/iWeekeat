@@ -47,3 +47,16 @@ export function buildWeek(monday: Date): WeekDay[] {
 export function getCurrentWeekDateKeys(reference: Date = new Date()): string[] {
   return buildWeek(getMonday(reference)).map((d) => d.dateKey);
 }
+
+// Un jour est "à venir" s'il n'est pas déjà passé (aujourd'hui inclus).
+// Sert à couvrir la semaine en cours ET la semaine prochaine sans
+// distinction, pour que "Générer" la liste de courses tienne compte
+// des repas déjà planifiés en avance.
+export function isDateKeyUpcoming(dateKey: string, reference: Date = new Date()): boolean {
+  return dateKey >= toDateKey(reference);
+}
+
+export function getUpcomingDateKeys(weekPlan: Record<string, unknown>, reference: Date = new Date()): string[] {
+  const todayKey = toDateKey(reference);
+  return Object.keys(weekPlan).filter((k) => k >= todayKey);
+}

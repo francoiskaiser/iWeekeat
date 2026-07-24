@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { AppData, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
 import { generateId, generateShoppingList } from "@/utils/helpers";
 import { loadAppData, saveAppData } from "@/utils/storage";
-import { getCurrentWeekDateKeys } from "@/utils/date";
+import { getUpcomingDateKeys, isDateKeyUpcoming } from "@/utils/date";
 
 import { useAuth } from "./AuthContext";
 
@@ -143,7 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setDayPlan = useCallback((dateKey: string, plan: DayPlan | null) => {
     persist((prev) => {
-      const invalidatesShopping = getCurrentWeekDateKeys().includes(dateKey);
+      const invalidatesShopping = isDateKeyUpcoming(dateKey);
       return {
         ...prev,
         weekPlan: { ...prev.weekPlan, [dateKey]: plan },
@@ -154,7 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const generateList = useCallback(() => {
     persist((prev) => {
-      const foodItems = generateShoppingList(prev, getCurrentWeekDateKeys()).map(
+      const foodItems = generateShoppingList(prev, getUpcomingDateKeys(prev.weekPlan)).map(
         (item): ExtendedShoppingItem => ({ ...item, checked: false, isExtra: false })
       );
       const extraItems = prev.shoppingList.filter((i) => (i as ExtendedShoppingItem).isExtra);
@@ -254,12 +254,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const newWeekPlan = { ...prev.weekPlan };
       for (const dateKey of dateKeys) newWeekPlan[dateKey] = null;
 
-      const touchesCurrentWeek = dateKeys.some((k) => getCurrentWeekDateKeys().includes(k));
+      const touchesUpcoming = dateKeys.some((k) => isDateKeyUpcoming(k));
       return {
         ...prev,
         weekPlan: newWeekPlan,
-        shoppingList: touchesCurrentWeek ? [] : prev.shoppingList,
-        shoppingListGenerated: touchesCurrentWeek ? false : prev.shoppingListGenerated,
+        shoppingList: touchesUpcoming ? [] : prev.shoppingList,
+        shoppingListGenerated: touchesUpcoming ? false : prev.shoppingListGenerated,
       };
     });
   }, [persist]);
@@ -275,11 +275,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         newWeekPlan[dateKey] = { categoryId: dish.categoryId, dishId: dish.id };
       });
 
-      const touchesCurrentWeek = dateKeys.some((k) => getCurrentWeekDateKeys().includes(k));
+      const touchesUpcoming = dateKeys.some((k) => isDateKeyUpcoming(k));
       return {
         ...prev,
         weekPlan: newWeekPlan,
-        shoppingListGenerated: touchesCurrentWeek ? false : prev.shoppingListGenerated,
+        shoppingListGenerated: touchesUpcoming ? false : prev.shoppingListGenerated,
       };
     });
   }, [persist]);

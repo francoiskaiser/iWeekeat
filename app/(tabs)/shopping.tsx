@@ -6,7 +6,7 @@ import { CleanAssistant } from "@/components/CleanAssistant";
 import { useApp, CleanItem, ExtendedShoppingItem } from "@/context/AppContext";
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { buildShoppingListText, shareText } from "@/utils/share";
-import { getCurrentWeekDateKeys } from "@/utils/date";
+import { getUpcomingDateKeys } from "@/utils/date";
 
 export default function ShoppingScreen() {
   const {
@@ -34,10 +34,10 @@ export default function ShoppingScreen() {
   const [showReserve, setShowReserve] = useState(false);
   const [showDone, setShowDone] = useState(false);
 
-  const currentWeekKeys = useMemo(() => getCurrentWeekDateKeys(), []);
+  const upcomingKeys = useMemo(() => getUpcomingDateKeys(data.weekPlan), [data.weekPlan]);
   const plannedCount = useMemo(
-    () => currentWeekKeys.filter((k) => data.weekPlan[k]).length,
-    [currentWeekKeys, data.weekPlan]
+    () => upcomingKeys.filter((k) => data.weekPlan[k]).length,
+    [upcomingKeys, data.weekPlan]
   );
 
   const foodItems = data.shoppingList.filter((i) => !(i as ExtendedShoppingItem).isExtra);
@@ -61,7 +61,7 @@ export default function ShoppingScreen() {
 
   const ingredientToDishesMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    const plannedDishIds = currentWeekKeys.map((k) => data.weekPlan[k]).filter(Boolean).map((p) => p!.dishId);
+    const plannedDishIds = upcomingKeys.map((k) => data.weekPlan[k]).filter(Boolean).map((p) => p!.dishId);
     plannedDishIds.forEach((dishId) => {
       const dish = data.dishes.find((d) => d.id === dishId);
       if (!dish) return;
@@ -72,7 +72,7 @@ export default function ShoppingScreen() {
       });
     });
     return map;
-  }, [currentWeekKeys, data.weekPlan, data.dishes, data.ingredients]);
+  }, [upcomingKeys, data.weekPlan, data.dishes, data.ingredients]);
 
   const handleGenerate = () => {
     if (plannedCount === 0) { Alert.alert("Semaine vide", "Planifiez au moins un repas dans l'onglet Semainier avant de générer la liste."); return; }
@@ -89,10 +89,7 @@ export default function ShoppingScreen() {
     if (nextIndex >= cleanQueue.length) finishClean(nextRemaining); else { setCleanRemaining(nextRemaining); setCleanIndex(nextIndex); }
   };
   const cancelClean = () => {
-    Alert.alert("Annuler l'inventaire", "Votre liste actuelle sera conservée.", [
-      { text: "Continuer", style: "cancel" },
-      { text: "Annuler", style: "destructive", onPress: () => { setCleanVisible(false); setCleanQueue([]); setCleanIndex(0); setCleanRemaining([]); } },
-    ]);
+    setCleanVisible(false); setCleanQueue([]); setCleanIndex(0); setCleanRemaining([]);
   };
 
   const showCleanBtn = data.shoppingListGenerated || data.shoppingList.length > 0 || (data.recurringExtras && data.recurringExtras.length > 0);
