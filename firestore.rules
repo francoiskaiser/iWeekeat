@@ -1,0 +1,74 @@
+rules_version = '2';
+
+// Regles de securite Firestore pour MealHelper.
+//
+// Modele :
+//   users/{uid}                        -> { groupId }         profil prive
+//   groups/{groupId}                   -> { name, createdBy, createdAt, memberUids[] }
+//   groups/{groupId}/data/{docId}      -> donnees partagees du foyer
+//                                         (pantry | planning | shopping)
+//
+// L'identifiant du groupe EST le code de partage (ex. "K7M2QP") : rejoindre un
+// foyer revient donc a connaitre son code.
+//
+// A deployer depuis la console Firebase (Firestore > Regles) ou via
+// `firebase deploy --only firestore:rules`.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMemberOf(groupId) {
+      return isSignedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberUids;
+    }
+
+    // Chacun ne lit et n'ecrit que son propre profil.
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /groups/{groupId} {
+      // Lecture unitaire autorisee a tout compte connecte : necessaire pour
+      // verifier qu'un code de foyer existe avant de le rejoindre. Le document
+      // ne contient rien de sensible (nom du foyer, identifiants techniques).
+      allow get: if isSignedIn();
+      allow list: if false;
+
+      // Creation d'un foyer : on doit en etre l'unique membre initial.
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid];
+
+      allow update: if isSignedIn() && (
+        // Membre existant : peut renommer le foyer, jamais toucher a la liste
+        // des membres.
+        (
+          request.auth.uid in resource.data.memberUids
+          && request.resource.data.memberUids == resource.data.memberUids
+          && request.resource.data.createdBy == resource.data.createdBy
+        )
+        ||
+        // Nouveau venu : peut uniquement s'ajouter lui-meme, sans rien
+        // modifier d'autre.
+        (
+          !(request.auth.uid in resource.data.memberUids)
+          && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid])
+          && request.resource.data.name == resource.data.name
+          && request.resource.data.createdBy == resource.data.createdBy
+        )
+      );
+
+      // Un foyer ne se supprime pas depuis l'app.
+      allow delete: if false;
+
+      // Donnees partagees : reservees aux membres du foyer.
+      match /data/{docId} {
+        allow read, write: if isMemberOf(groupId);
+      }
+    }
+  }
+}

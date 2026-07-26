@@ -11,7 +11,7 @@ import { getCurrentWeekDateKeys, toDateKey } from "@/utils/date";
 export default function HomeScreen() {
   const router = useRouter();
   const { data } = useApp();
-  const { user } = useAuth();
+  const { displayName } = useAuth();
   const {
     background: backgroundColor,
     text: textColor,
@@ -20,7 +20,7 @@ export default function HomeScreen() {
     track: trackColor,
   } = useThemeColors();
 
-  const firstName = user?.user_metadata?.username || "Chef";
+  const firstName = displayName;
   const initials = firstName.substring(0, 2).toUpperCase();
 
   // --- Date & repas du jour ---

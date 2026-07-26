@@ -1,66 +1,135 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Profil local créé au premier lancement, stocké dans AsyncStorage — pas de compte distant.
-type LocalUser = {
-  id: string;
-  user_metadata: {
-    username: string;
-    group_id: string;
-  };
-};
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth';
+import { getFirebaseAuth, isFirebaseConfigured } from '@/utils/firebase';
+import {
+  createGroup as createGroupDoc,
+  fetchUserGroupId,
+  joinGroup as joinGroupDoc,
+} from '@/utils/groups';
 
 type AuthContextType = {
-  user: LocalUser | null;
+  configured: boolean;
+  user: User | null;
+  displayName: string;
+  groupId: string | null;
   initialized: boolean;
+  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  createGroup: (name: string) => Promise<string>;
+  joinGroup: (code: string) => Promise<string>;
 };
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  initialized: false,
-});
+const AuthContext = createContext<AuthContextType | null>(null);
 
-const LOCAL_USER_KEY = '@meal_helper_local_user';
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<LocalUser | null>(null);
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(LOCAL_USER_KEY);
-        if (stored) {
-          setUser(JSON.parse(stored));
-        } else {
-          // Création du profil local par défaut
-          const newUser: LocalUser = {
-            id: 'local-user',
-            user_metadata: {
-              username: 'Moi',
-              group_id: 'LOCAL', // un seul "coffre" local
-            },
-          };
-          await AsyncStorage.setItem(LOCAL_USER_KEY, JSON.stringify(newUser));
-          setUser(newUser);
-        }
-      } catch (e) {
-        // En cas d'erreur on retombe sur un profil local minimal
-        setUser({
-          id: 'local-user',
-          user_metadata: { username: 'Moi', group_id: 'LOCAL' },
-        });
-      } finally {
-        setInitialized(true);
-      }
-    })();
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ user, initialized }}>
-      {children}
-    </AuthContext.Provider>
-  );
+// Firebase renvoie des codes techniques : on les traduit pour l'utilisateur.
+export function authErrorMessage(error: unknown): string {
+  const code = (error as { code?: string })?.code ?? '';
+  switch (code) {
+    case 'auth/invalid-email':
+      return "Cette adresse e-mail n'est pas valide.";
+    case 'auth/email-already-in-use':
+      return 'Un compte existe deja avec cette adresse.';
+    case 'auth/weak-password':
+      return 'Le mot de passe doit contenir au moins 6 caracteres.';
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Adresse e-mail ou mot de passe incorrect.';
+    case 'auth/too-many-requests':
+      return 'Trop de tentatives. Reessayez dans quelques minutes.';
+    case 'auth/network-request-failed':
+      return 'Pas de connexion internet.';
+    default:
+      return (error as { message?: string })?.message ?? 'Une erreur est survenue.';
+  }
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(!isFirebaseConfigured);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
+    return onAuthStateChanged(getFirebaseAuth(), async (nextUser) => {
+      setUser(nextUser);
+      if (nextUser) {
+        try {
+          setGroupId(await fetchUserGroupId(nextUser.uid));
+        } catch {
+          // Hors ligne au demarrage : on laissera l'ecran foyer reessayer.
+          setGroupId(null);
+        }
+      } else {
+        setGroupId(null);
+      }
+      setInitialized(true);
+    });
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
+    const credential = await createUserWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+    const trimmed = name.trim();
+    if (trimmed) await updateProfile(credential.user, { displayName: trimmed });
+    setUser({ ...credential.user, displayName: trimmed || credential.user.displayName } as User);
+  }, []);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await fbSignOut(getFirebaseAuth());
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+  }, []);
+
+  const createGroup = useCallback(async (name: string) => {
+    if (!user) throw new Error('Vous devez etre connecte.');
+    const code = await createGroupDoc(user.uid, name);
+    setGroupId(code);
+    return code;
+  }, [user]);
+
+  const joinGroup = useCallback(async (code: string) => {
+    if (!user) throw new Error('Vous devez etre connecte.');
+    const joined = await joinGroupDoc(user.uid, code);
+    setGroupId(joined);
+    return joined;
+  }, [user]);
+
+  const value = useMemo<AuthContextType>(() => ({
+    configured: isFirebaseConfigured,
+    user,
+    displayName: user?.displayName?.trim() || 'Chef',
+    groupId,
+    initialized,
+    signUp,
+    signIn,
+    signOut,
+    resetPassword,
+    createGroup,
+    joinGroup,
+  }), [user, groupId, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export const useAuth = (): AuthContextType => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+};

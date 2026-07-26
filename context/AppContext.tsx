@@ -45,29 +45,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<ExtendedAppData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { user } = useAuth();
+  const { groupId } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!groupId) return;
 
-    const groupId = user.user_metadata?.group_id || "LOCAL";
-
+    let cancelled = false;
+    setLoading(true);
     loadAppData(groupId).then((loaded) => {
+      if (cancelled) return;
       setData(loaded as ExtendedAppData);
       setLoading(false);
     });
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [groupId]);
 
   const persist = useCallback((updater: (prev: ExtendedAppData) => ExtendedAppData) => {
     setData((prev) => {
       if (!prev) return prev;
       const next = updater(prev);
-
-      const groupId = user?.user_metadata?.group_id;
       if (groupId) saveAppData(next, groupId);
       return next;
     });
-  }, [user]);
+  }, [groupId]);
 
   const addCategory = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -297,8 +297,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
   ]);
 
-  if (!user) {
-    return null; // On cache tout en attendant d'être renvoyé vers le Login
+  if (!groupId) {
+    return null; // En attente de redirection vers la connexion ou le choix du foyer
   }
 
   if (loading || !value) {

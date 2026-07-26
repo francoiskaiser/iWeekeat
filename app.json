@@ -36,6 +36,14 @@
       "router": {},
       "eas": {
         "projectId": "42c2e904-2c30-4202-8c1d-89358270b8c5"
+      },
+      "firebase": {
+        "apiKey": "",
+        "authDomain": "",
+        "projectId": "",
+        "storageBucket": "",
+        "messagingSenderId": "",
+        "appId": ""
       }
     }
   }
