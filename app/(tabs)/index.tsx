@@ -10,7 +10,7 @@ import { getCurrentWeekDateKeys, toDateKey } from "@/utils/date";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { data } = useApp();
+  const { data, syncing, syncError, syncNow } = useApp();
   const { displayName } = useAuth();
   const {
     background: backgroundColor,
@@ -57,6 +57,14 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        {syncError && (
+          <TouchableOpacity style={styles.syncBanner} onPress={syncNow} activeOpacity={0.8}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#b45309" />
+            <Text style={styles.syncBannerText}>{syncError}</Text>
+            <Ionicons name={syncing ? 'sync' : 'refresh'} size={16} color="#b45309" />
+          </TouchableOpacity>
+        )}
 
         {/* CARTE "CE SOIR" */}
         <TouchableOpacity activeOpacity={0.9} style={styles.tonightCard} onPress={() => router.push('/planner')}>
@@ -124,6 +132,8 @@ const styles = StyleSheet.create({
   profileBadge: { backgroundColor: '#1e293b', width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   profileInitials: { color: '#fff', fontWeight: '800' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 110 },
+  syncBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 14 },
+  syncBannerText: { flex: 1, color: '#b45309', fontSize: 13, fontWeight: '700' },
 
   tonightCard: { backgroundColor: '#FF7A41', borderRadius: 26, padding: 22, marginBottom: 14 },
   tonightEyebrow: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 12, letterSpacing: 1 },

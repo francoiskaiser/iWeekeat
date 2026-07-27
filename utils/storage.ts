@@ -40,3 +40,25 @@ export const saveAppData = async (data: AppData, groupId: string) => {
     console.error('Erreur de sauvegarde locale :', e);
   }
 };
+
+// Modifications faites sur ce telephone mais pas encore envoyees au foyer
+// (typiquement : saisies hors ligne). Tant que ce drapeau est leve, on pousse
+// le local vers le cloud plutot que l'inverse, pour ne rien perdre.
+const dirtyKey = (groupId: string) => `@meal_helper_dirty_${groupId}`;
+
+export const loadPendingChanges = async (groupId: string): Promise<boolean> => {
+  try {
+    return (await AsyncStorage.getItem(dirtyKey(groupId))) === '1';
+  } catch {
+    return false;
+  }
+};
+
+export const savePendingChanges = async (groupId: string, pending: boolean) => {
+  try {
+    if (pending) await AsyncStorage.setItem(dirtyKey(groupId), '1');
+    else await AsyncStorage.removeItem(dirtyKey(groupId));
+  } catch (e) {
+    console.error('Erreur de sauvegarde locale :', e);
+  }
+};

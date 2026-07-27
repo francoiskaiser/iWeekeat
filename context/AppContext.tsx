@@ -1,8 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, AppState, View } from "react-native";
 import { AppData, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
 import { generateId, generateShoppingList } from "@/utils/helpers";
-import { loadAppData, saveAppData } from "@/utils/storage";
+import { loadAppData, loadPendingChanges, saveAppData, savePendingChanges } from "@/utils/storage";
+import { pullGroupData, pushGroupData } from "@/utils/remote";
 import { getUpcomingDateKeys, isDateKeyUpcoming } from "@/utils/date";
 
 import { useAuth } from "./AuthContext";
@@ -37,6 +38,9 @@ interface AppContextValue {
   applyCleanResults: (remainingItems: CleanItem[]) => void;
   resetWeekPlan: (dateKeys: string[]) => void;
   randomizeWeek: (dateKeys: string[]) => void;
+  syncing: boolean;
+  syncError: string | null;
+  syncNow: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -47,6 +51,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const { groupId } = useAuth();
 
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  // Dernier etat connu des donnees, lisible depuis les callbacks asynchrones
+  // sans les recreer a chaque frappe.
+  const dataRef = useRef<ExtendedAppData | null>(null);
+  const [pushTick, setPushTick] = useState(0);
+
+  useEffect(() => { dataRef.current = data; }, [data]);
+
+  /**
+   * Reconcilie le cache local et le foyer.
+   * Regle : si ce telephone a des modifications non envoyees, elles gagnent ;
+   * sinon le foyer fait autorite. Un foyer encore vide est amorce avec le
+   * contenu local (ce qui importe les plats deja saisis avant la connexion).
+   */
+  const reconcile = useCallback(async (group: string) => {
+    setSyncing(true);
+    try {
+      const local = dataRef.current;
+      const hasPending = await loadPendingChanges(group);
+
+      if (hasPending && local) {
+        await pushGroupData(group, local);
+        await savePendingChanges(group, false);
+      } else {
+        const remote = await pullGroupData(group);
+        if (remote) {
+          setData(remote as ExtendedAppData);
+          dataRef.current = remote as ExtendedAppData;
+          await saveAppData(remote, group);
+        } else if (local) {
+          await pushGroupData(group, local);
+        }
+      }
+      setSyncError(null);
+    } catch {
+      setSyncError('Donnees non synchronisees (hors ligne ?)');
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  // Chargement initial : le cache local s'affiche tout de suite, la
+  // synchronisation se fait ensuite en arriere-plan.
   useEffect(() => {
     if (!groupId) return;
 
@@ -55,19 +103,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     loadAppData(groupId).then((loaded) => {
       if (cancelled) return;
       setData(loaded as ExtendedAppData);
+      dataRef.current = loaded as ExtendedAppData;
       setLoading(false);
+      reconcile(groupId);
     });
     return () => { cancelled = true; };
-  }, [groupId]);
+  }, [groupId, reconcile]);
+
+  // Retour au premier plan : on resynchronise pour recuperer ce que l'autre
+  // telephone a pu changer entre-temps.
+  useEffect(() => {
+    if (!groupId) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') reconcile(groupId);
+    });
+    return () => sub.remove();
+  }, [groupId, reconcile]);
+
+  // Envoi differe apres modification : evite une ecriture par frappe clavier.
+  useEffect(() => {
+    if (!groupId || pushTick === 0) return;
+    const timer = setTimeout(async () => {
+      const current = dataRef.current;
+      if (!current) return;
+      setSyncing(true);
+      try {
+        await pushGroupData(groupId, current);
+        await savePendingChanges(groupId, false);
+        setSyncError(null);
+      } catch {
+        setSyncError('Modifications enregistrees sur ce telephone uniquement');
+      } finally {
+        setSyncing(false);
+      }
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [pushTick, groupId]);
 
   const persist = useCallback((updater: (prev: ExtendedAppData) => ExtendedAppData) => {
     setData((prev) => {
       if (!prev) return prev;
       const next = updater(prev);
       if (groupId) saveAppData(next, groupId);
+      dataRef.current = next;
       return next;
     });
+    if (groupId) {
+      savePendingChanges(groupId, true);
+      setPushTick((t) => t + 1);
+    }
   }, [groupId]);
+
+  const syncNow = useCallback(() => {
+    if (groupId) reconcile(groupId);
+  }, [groupId, reconcile]);
 
   const addCategory = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -290,11 +379,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
       addIngredient, updateIngredient, deleteIngredient, setDayPlan, generateList, toggleShoppingItem,
       removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
+      syncing, syncError, syncNow,
     };
   }, [
     data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
     addIngredient, updateIngredient, deleteIngredient, setDayPlan, generateList, toggleShoppingItem,
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
+    syncing, syncError, syncNow,
   ]);
 
   if (!groupId) {
