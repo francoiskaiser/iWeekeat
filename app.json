@@ -38,12 +38,12 @@
         "projectId": "42c2e904-2c30-4202-8c1d-89358270b8c5"
       },
       "firebase": {
-        "apiKey": "",
-        "authDomain": "",
-        "projectId": "",
-        "storageBucket": "",
-        "messagingSenderId": "",
-        "appId": ""
+        "apiKey": "AIzaSyDY5kyOvZsek2G5ecC9VvGaNKtTIF2lYj4",
+        "authDomain": "mealhelper-5db87.firebaseapp.com",
+        "projectId": "mealhelper-5db87",
+        "storageBucket": "mealhelper-5db87.firebasestorage.app",
+        "messagingSenderId": "633227445102",
+        "appId": "1:633227445102:web:909afa4a6347ec1b6c777f"
       }
     }
   }

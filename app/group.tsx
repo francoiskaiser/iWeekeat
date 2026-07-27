@@ -19,23 +19,35 @@ export default function GroupScreen() {
   const [groupName, setGroupName] = useState(`Foyer de ${displayName}`);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const inputBg = isDarkMode ? '#0f172a' : '#fff';
 
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+  };
+
   const submit = async () => {
+    setError(null);
     setLoading(true);
     try {
       if (mode === 'create') {
         const created = await createGroup(groupName);
         Alert.alert(
           'Foyer cree',
-          `Votre code de partage est ${created}.\n\nCommuniquez-le a votre conjoint pour qu'il rejoigne le meme foyer.`,
+          `Votre code de partage est ${created}.\n\nCommuniquez-le a votre conjoint pour qu'il rejoigne le meme foyer. Vous le retrouverez dans Parametres.`,
         );
       } else {
         await joinGroup(code);
       }
     } catch (e) {
-      Alert.alert('Operation impossible', (e as Error).message);
+      const raw = (e as { code?: string; message?: string });
+      setError(
+        raw.code === 'permission-denied'
+          ? "Acces refuse par Firestore. Les regles de securite du projet Firebase n'ont pas encore ete publiees."
+          : raw.message ?? 'Une erreur est survenue.',
+      );
     } finally {
       setLoading(false);
     }
@@ -62,13 +74,13 @@ export default function GroupScreen() {
           <View style={[styles.tabs, { backgroundColor: card, borderColor: border }]}>
             <TouchableOpacity
               style={[styles.tab, mode === 'create' && styles.tabActive]}
-              onPress={() => setMode('create')}
+              onPress={() => switchMode('create')}
             >
               <Text style={[styles.tabText, { color: mode === 'create' ? '#fff' : subText }]}>Creer</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, mode === 'join' && styles.tabActive]}
-              onPress={() => setMode('join')}
+              onPress={() => switchMode('join')}
             >
               <Text style={[styles.tabText, { color: mode === 'join' ? '#fff' : subText }]}>Rejoindre</Text>
             </TouchableOpacity>
@@ -114,6 +126,13 @@ export default function GroupScreen() {
             </>
           )}
 
+          {error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={18} color="#ef4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.mainButton, disabled && styles.mainButtonDisabled]}
             onPress={submit}
@@ -154,6 +173,8 @@ const styles = StyleSheet.create({
   codeInput: { fontSize: 22, fontWeight: '800', letterSpacing: 4 },
   helper: { fontSize: 13, lineHeight: 19, marginTop: 10, marginHorizontal: 4 },
 
+  errorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 18 },
+  errorText: { flex: 1, color: '#b91c1c', fontSize: 14, lineHeight: 19, fontWeight: '600' },
   mainButton: { backgroundColor: '#FF7A41', borderRadius: 16, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 28, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   mainButtonDisabled: { opacity: 0.5, elevation: 0 },
   mainButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },

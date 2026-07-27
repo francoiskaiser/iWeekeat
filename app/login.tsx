@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,40 +17,52 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const inputBg = isDarkMode ? '#0f172a' : '#fff';
 
+  const switchMode = () => {
+    setIsLogin((v) => !v);
+    setError(null);
+    setNotice(null);
+  };
+
   const handleAuth = async () => {
+    setNotice(null);
     if (!email.trim() || !password) {
-      Alert.alert('Champs manquants', 'Renseignez votre e-mail et votre mot de passe.');
+      setError('Renseignez votre e-mail et votre mot de passe.');
       return;
     }
     if (!isLogin && !username.trim()) {
-      Alert.alert('Champs manquants', 'Indiquez votre prenom.');
+      setError('Indiquez votre prenom.');
       return;
     }
 
+    setError(null);
     setLoading(true);
     try {
       if (isLogin) await signIn(email, password);
       else await signUp(email, password, username);
     } catch (e) {
-      Alert.alert('Connexion impossible', authErrorMessage(e));
+      setError(authErrorMessage(e));
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgot = async () => {
+    setNotice(null);
     if (!email.trim()) {
-      Alert.alert('Adresse requise', 'Saisissez votre e-mail, puis retouchez "Mot de passe oublie".');
+      setError('Saisissez votre e-mail, puis retouchez "Mot de passe oublie".');
       return;
     }
+    setError(null);
     try {
       await resetPassword(email);
-      Alert.alert('E-mail envoye', 'Consultez votre boite mail pour reinitialiser votre mot de passe.');
+      setNotice('E-mail envoye : consultez votre boite mail pour choisir un nouveau mot de passe.');
     } catch (e) {
-      Alert.alert('Envoi impossible', authErrorMessage(e));
+      setError(authErrorMessage(e));
     }
   };
 
@@ -107,6 +119,20 @@ export default function LoginScreen() {
               />
             </View>
 
+            {error && (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {notice && (
+              <View style={styles.noticeBox}>
+                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                <Text style={styles.noticeText}>{notice}</Text>
+              </View>
+            )}
+
             <TouchableOpacity
               style={[styles.mainButton, loading && styles.mainButtonDisabled]}
               onPress={handleAuth}
@@ -117,7 +143,7 @@ export default function LoginScreen() {
                 : <Text style={styles.mainButtonText}>{isLogin ? 'Se connecter' : 'Creer mon compte'}</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.switchButton} onPress={() => setIsLogin(!isLogin)}>
+            <TouchableOpacity style={styles.switchButton} onPress={switchMode}>
               <Text style={[styles.switchButtonText, { color: subText }]}>
                 {isLogin ? "Pas encore de compte ? S'inscrire" : 'Deja un compte ? Se connecter'}
               </Text>
@@ -155,6 +181,10 @@ const styles = StyleSheet.create({
   inputGroup: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, marginBottom: 15, paddingHorizontal: 15, height: 55, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10 },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, fontSize: 16 },
+  errorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 4 },
+  errorText: { flex: 1, color: '#b91c1c', fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  noticeBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#ecfdf5', borderColor: '#a7f3d0', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 4 },
+  noticeText: { flex: 1, color: '#047857', fontSize: 14, lineHeight: 19, fontWeight: '600' },
   mainButton: { backgroundColor: '#FF7A41', borderRadius: 16, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   mainButtonDisabled: { opacity: 0.7 },
   mainButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
