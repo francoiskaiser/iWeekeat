@@ -5,7 +5,7 @@ import { getDb } from './firebase';
 // Les donnees du foyer sont reparties en trois documents plutot qu'un seul
 // gros blob : si l'un edite le garde-manger pendant que l'autre coche des
 // courses, les deux ecritures ne se marchent plus dessus.
-const DOCS = ['pantry', 'planning', 'shopping'] as const;
+const DOCS = ['pantry', 'planning', 'shopping', 'calendar'] as const;
 
 export type SharedAppData = AppData & { recurringExtras?: string[] };
 
@@ -24,6 +24,9 @@ function split(data: SharedAppData) {
       recurringExtras: data.recurringExtras ?? [],
       shoppingListGenerated: data.shoppingListGenerated ?? false,
     },
+    calendar: {
+      events: data.events ?? [],
+    },
   };
 }
 
@@ -39,7 +42,7 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
 
   if (snaps.every((s) => !s.exists())) return null;
 
-  const [pantry, planning, shopping] = snaps.map((s) => (s.exists() ? s.data() : {}));
+  const [pantry, planning, shopping, calendar] = snaps.map((s) => (s.exists() ? s.data() : {}));
 
   return {
     categories: pantry.categories ?? [],
@@ -49,6 +52,7 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
     shoppingList: shopping.shoppingList ?? [],
     recurringExtras: shopping.recurringExtras ?? [],
     shoppingListGenerated: shopping.shoppingListGenerated ?? false,
+    events: calendar.events ?? [],
   };
 }
 

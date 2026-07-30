@@ -11,6 +11,8 @@ import {
 import { getFirebaseAuth, isFirebaseConfigured } from '@/utils/firebase';
 import {
   createGroup as createGroupDoc,
+  ensureMemberName,
+  fetchGroupInfo,
   fetchUserGroupId,
   joinGroup as joinGroupDoc,
 } from '@/utils/groups';
@@ -20,6 +22,10 @@ type AuthContextType = {
   user: User | null;
   displayName: string;
   groupId: string | null;
+  groupName: string | null;
+  /** uid -> prenom des membres du foyer. */
+  members: Record<string, string>;
+  refreshGroup: () => void;
   initialized: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -57,7 +63,33 @@ export function authErrorMessage(error: unknown): string {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState<string | null>(null);
+  const [members, setMembers] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(!isFirebaseConfigured);
+
+  // Nom du foyer et prenoms des membres, necessaires pour afficher qui est
+  // concerne par un evenement du calendrier.
+  const loadGroupInfo = useCallback(async (group: string | null, uid?: string, who?: string) => {
+    if (!group) {
+      setGroupName(null);
+      setMembers({});
+      return;
+    }
+    try {
+      // Inscrit ou corrige son propre prenom avant lecture, sinon les foyers
+      // crees avant cette fonctionnalite afficheraient "Membre du foyer".
+      if (uid && who) await ensureMemberName(group, uid, who);
+      const info = await fetchGroupInfo(group);
+      setGroupName(info?.name ?? null);
+      setMembers(info?.members ?? {});
+    } catch {
+      // Hors ligne : on garde ce qu'on avait deja.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGroupInfo(groupId, user?.uid, user?.displayName?.trim() || undefined);
+  }, [groupId, user, loadGroupInfo]);
 
   useEffect(() => {
     if (!isFirebaseConfigured) return;
@@ -99,23 +131,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const createGroup = useCallback(async (name: string) => {
     if (!user) throw new Error('Vous devez etre connecte.');
-    const code = await createGroupDoc(user.uid, name);
+    const who = user.displayName?.trim() || 'Chef';
+    const code = await createGroupDoc(user.uid, name, who);
     setGroupId(code);
     return code;
   }, [user]);
 
   const joinGroup = useCallback(async (code: string) => {
     if (!user) throw new Error('Vous devez etre connecte.');
-    const joined = await joinGroupDoc(user.uid, code);
+    const who = user.displayName?.trim() || 'Chef';
+    const joined = await joinGroupDoc(user.uid, code, who);
     setGroupId(joined);
     return joined;
   }, [user]);
+
+  const refreshGroup = useCallback(() => {
+    loadGroupInfo(groupId, user?.uid, user?.displayName?.trim() || undefined);
+  }, [groupId, user, loadGroupInfo]);
 
   const value = useMemo<AuthContextType>(() => ({
     configured: isFirebaseConfigured,
     user,
     displayName: user?.displayName?.trim() || 'Chef',
     groupId,
+    groupName,
+    members,
+    refreshGroup,
     initialized,
     signUp,
     signIn,
@@ -123,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     createGroup,
     joinGroup,
-  }), [user, groupId, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup]);
+  }), [user, groupId, groupName, members, refreshGroup, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

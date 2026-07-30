@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export interface PickerOption {
   label: string;
@@ -39,6 +40,9 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
   enabled = true,
 }, ref) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const { isDarkMode, text, subText, card, border } = useThemeColors();
+  const sheetBg = card;
+  const triggerBg = isDarkMode ? '#0f172a' : '#fff';
 
   // Permet au composant parent (le Planificateur) de forcer l'ouverture du menu
   useImperativeHandle(ref, () => ({
@@ -55,15 +59,19 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
-      
+      <Text style={[styles.label, { color: text }]}>{label}</Text>
+
       {/* BOUTON DÉCLENCHEUR */}
-      <TouchableOpacity 
-        style={[styles.triggerButton, !enabled && styles.triggerButtonDisabled]} 
+      <TouchableOpacity
+        style={[
+          styles.triggerButton,
+          { backgroundColor: triggerBg, borderColor: border },
+          !enabled && { opacity: 0.6 },
+        ]}
         onPress={() => enabled && setModalVisible(true)}
         activeOpacity={enabled ? 0.7 : 1}
       >
-        <Text style={[styles.triggerText, !selectedOption && styles.placeholderText]}>
+        <Text style={[styles.triggerText, { color: selectedOption ? text : '#94a3b8' }]}>
           {selectedOption ? selectedOption.label : placeholder}
         </Text>
         <Ionicons name="chevron-down" size={20} color={enabled ? "#FF7A41" : "#cbd5e1"} />
@@ -77,12 +85,12 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
             <View style={styles.modalBackdrop} />
           </TouchableWithoutFeedback>
 
-          <View style={styles.bottomSheet}>
+          <View style={[styles.bottomSheet, { backgroundColor: sheetBg }]}>
             {/* Petite barre grise pour indiquer qu'on peut glisser/fermer */}
-            <View style={styles.dragIndicator} />
-            
+            <View style={[styles.dragIndicator, { backgroundColor: border }]} />
+
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{label}</Text>
+              <Text style={[styles.sheetTitle, { color: text }]}>{label}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
                 <Ionicons name="close-circle" size={28} color="#e2e8f0" />
               </TouchableOpacity>
@@ -90,7 +98,7 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
 
             {options.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Aucune option disponible.</Text>
+                <Text style={[styles.emptyText, { color: subText }]}>Aucune option disponible.</Text>
               </View>
             ) : (
               <FlatList
@@ -101,11 +109,15 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
                 renderItem={({ item }) => {
                   const isSelected = item.value === selectedValue;
                   return (
-                    <TouchableOpacity 
-                      style={[styles.optionItem, isSelected && styles.optionItemSelected]} 
+                    <TouchableOpacity
+                      style={[
+                        styles.optionItem,
+                        { borderBottomColor: border },
+                        isSelected && styles.optionItemSelected,
+                      ]}
                       onPress={() => handleSelect(item.value)}
                     >
-                      <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                      <Text style={[styles.optionText, { color: text }, isSelected && styles.optionTextSelected]}>
                         {item.label}
                       </Text>
                       {isSelected && <Ionicons name="checkmark-circle" size={24} color="#10B981" />}
@@ -132,7 +144,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1e293b',
     marginBottom: 8,
     marginLeft: 4,
     textTransform: 'uppercase',
@@ -142,24 +153,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 55,
   },
-  triggerButtonDisabled: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#f1f5f9',
-  },
   triggerText: {
     fontSize: 16,
-    color: '#1e293b',
     flex: 1,
-  },
-  placeholderText: {
-    color: '#94a3b8',
   },
   // --- Bottom Sheet Styles ---
   modalOverlay: {
@@ -171,7 +172,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.4)', // Fond sombre transparent
   },
   bottomSheet: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     minHeight: '30%',
@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
   dragIndicator: {
     width: 40,
     height: 5,
-    backgroundColor: '#e2e8f0',
     borderRadius: 5,
     alignSelf: 'center',
     marginBottom: 15,
@@ -201,7 +200,6 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1e293b',
   },
   closeButton: {
     padding: 4,
@@ -215,7 +213,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   optionItemSelected: {
     backgroundColor: '#10B98110', // Fond vert très léger si sélectionné
@@ -226,7 +223,6 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 17,
-    color: '#334155',
     fontWeight: '500',
   },
   optionTextSelected: {
@@ -238,7 +234,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#94a3b8',
     fontSize: 16,
   },
 });

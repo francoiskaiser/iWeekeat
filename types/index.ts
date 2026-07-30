@@ -39,6 +39,32 @@ export interface ShoppingItem {
   checked: boolean;
 }
 
+export type Recurrence = "none" | "weekly" | "monthly" | "yearly";
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  /** Date ISO "YYYY-MM-DD". Pour un evenement recurrent, c'est la premiere occurrence. */
+  date: string;
+  allDay: boolean;
+  /** "HH:MM" — absents si allDay. */
+  startTime?: string;
+  endTime?: string;
+  note?: string;
+  /**
+   * Identifiants des membres concernes. Vide = tout le foyer.
+   * On stocke des uid et non "moi"/"elle" : la notion est relative a
+   * celui qui regarde, chaque telephone traduit a l'affichage.
+   */
+  assignedTo: string[];
+  recurrence: Recurrence;
+  /** Occurrences supprimees a l'unite d'une serie recurrente. */
+  excludedDates?: string[];
+  /** Minutes avant l'evenement pour le rappel local. null = aucun rappel. */
+  reminderMinutes?: number | null;
+  createdBy: string;
+}
+
 export interface AppData {
   categories: Category[];
   dishes: Dish[];
@@ -46,4 +72,5 @@ export interface AppData {
   weekPlan: WeekPlan;
   shoppingList: ShoppingItem[];
   shoppingListGenerated: boolean;
+  events: CalendarEvent[];
 }

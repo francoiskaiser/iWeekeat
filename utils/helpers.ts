@@ -30,6 +30,7 @@ export function createDefaultData(): AppData {
     weekPlan: createEmptyWeekPlan(),
     shoppingList: [],
     shoppingListGenerated: false,
+    events: [],
   };
 }
 

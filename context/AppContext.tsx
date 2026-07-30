@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, View } from "react-native";
-import { AppData, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
+import { AppData, CalendarEvent, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
 import { generateId, generateShoppingList } from "@/utils/helpers";
 import { loadAppData, loadPendingChanges, saveAppData, savePendingChanges } from "@/utils/storage";
 import { pullGroupData, pushGroupData } from "@/utils/remote";
@@ -38,6 +38,11 @@ interface AppContextValue {
   applyCleanResults: (remainingItems: CleanItem[]) => void;
   resetWeekPlan: (dateKeys: string[]) => void;
   randomizeWeek: (dateKeys: string[]) => void;
+  addEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  updateEvent: (id: string, changes: Partial<Omit<CalendarEvent, 'id'>>) => void;
+  deleteEvent: (id: string) => void;
+  /** Retire une seule occurrence d'une serie recurrente. */
+  deleteOccurrence: (id: string, dateKey: string) => void;
   syncing: boolean;
   syncError: string | null;
   syncNow: () => void;
@@ -373,18 +378,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [persist]);
 
+  const addEvent = useCallback((event: Omit<CalendarEvent, 'id'>) => {
+    persist((prev) => ({
+      ...prev,
+      events: [...(prev.events ?? []), { ...event, id: generateId('evt') }],
+    }));
+  }, [persist]);
+
+  const updateEvent = useCallback((id: string, changes: Partial<Omit<CalendarEvent, 'id'>>) => {
+    persist((prev) => ({
+      ...prev,
+      events: (prev.events ?? []).map((e) => (e.id === id ? { ...e, ...changes } : e)),
+    }));
+  }, [persist]);
+
+  const deleteEvent = useCallback((id: string) => {
+    persist((prev) => ({
+      ...prev,
+      events: (prev.events ?? []).filter((e) => e.id !== id),
+    }));
+  }, [persist]);
+
+  const deleteOccurrence = useCallback((id: string, dateKey: string) => {
+    persist((prev) => ({
+      ...prev,
+      events: (prev.events ?? []).map((e) =>
+        e.id === id
+          ? { ...e, excludedDates: [...(e.excludedDates ?? []), dateKey] }
+          : e,
+      ),
+    }));
+  }, [persist]);
+
   const value = useMemo<AppContextValue | null>(() => {
     if (!data) return null;
     return {
       data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
       addIngredient, updateIngredient, deleteIngredient, setDayPlan, generateList, toggleShoppingItem,
       removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
+      addEvent, updateEvent, deleteEvent, deleteOccurrence,
       syncing, syncError, syncNow,
     };
   }, [
     data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
     addIngredient, updateIngredient, deleteIngredient, setDayPlan, generateList, toggleShoppingItem,
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
+    addEvent, updateEvent, deleteEvent, deleteOccurrence,
     syncing, syncError, syncNow,
   ]);
 

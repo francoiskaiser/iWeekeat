@@ -1,27 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, Share, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAuth } from '@/context/AuthContext';
-import { fetchGroupInfo, type GroupInfo } from '@/utils/groups';
 
 export default function SettingsScreen() {
   const { toggleTheme } = useTheme();
   const { isDarkMode, text: textColor, subText, background, card, border } = useThemeColors();
-  const { displayName, user, groupId, signOut } = useAuth();
+  const { displayName, user, groupId, groupName, members, signOut } = useAuth();
 
-  const [group, setGroup] = useState<GroupInfo | null>(null);
-
-  useEffect(() => {
-    if (!groupId) return;
-    let cancelled = false;
-    fetchGroupInfo(groupId)
-      .then((info) => { if (!cancelled) setGroup(info); })
-      .catch(() => { /* hors ligne : on affiche le code seul */ });
-    return () => { cancelled = true; };
-  }, [groupId]);
+  const memberNames = Object.entries(members);
 
   const shareCode = () => {
     if (!groupId) return;
@@ -44,9 +34,11 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionLabel, { color: subText }]}>MON FOYER</Text>
         <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.groupName, { color: textColor }]}>{group?.name ?? 'Mon foyer'}</Text>
+          <Text style={[styles.groupName, { color: textColor }]}>{groupName ?? 'Mon foyer'}</Text>
           <Text style={[styles.groupMeta, { color: subText }]}>
-            {group ? `${group.memberCount} membre(s)` : 'Chargement...'}
+            {memberNames.length
+              ? memberNames.map(([uid, name]) => (uid === user?.uid ? `${name} (vous)` : name)).join(' · ')
+              : 'Chargement...'}
           </Text>
 
           <Text style={[styles.codeLabel, { color: subText }]}>Code de partage</Text>

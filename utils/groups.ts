@@ -5,6 +5,8 @@ export interface GroupInfo {
   id: string;
   name: string;
   memberCount: number;
+  /** uid -> prenom, pour afficher qui est concerne par un evenement. */
+  members: Record<string, string>;
 }
 
 // Alphabet sans caracteres ambigus (ni O/0, ni I/1) : le code se dicte a voix
@@ -24,7 +26,7 @@ export function normalizeCode(raw: string): string {
   return raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-export async function createGroup(uid: string, name: string): Promise<string> {
+export async function createGroup(uid: string, name: string, displayName: string): Promise<string> {
   const db = getDb();
   const trimmed = name.trim() || 'Mon foyer';
 
@@ -41,6 +43,7 @@ export async function createGroup(uid: string, name: string): Promise<string> {
       createdBy: uid,
       createdAt: serverTimestamp(),
       memberUids: [uid],
+      members: { [uid]: displayName },
     });
     await setDoc(doc(db, 'users', uid), { groupId: code }, { merge: true });
     return code;
@@ -49,7 +52,7 @@ export async function createGroup(uid: string, name: string): Promise<string> {
   throw new Error("Impossible de generer un code de foyer, reessayez.");
 }
 
-export async function joinGroup(uid: string, rawCode: string): Promise<string> {
+export async function joinGroup(uid: string, rawCode: string, displayName: string): Promise<string> {
   const db = getDb();
   const code = normalizeCode(rawCode);
   if (code.length !== CODE_LENGTH) {
@@ -63,9 +66,10 @@ export async function joinGroup(uid: string, rawCode: string): Promise<string> {
   }
 
   const memberUids: string[] = snap.data().memberUids ?? [];
-  if (!memberUids.includes(uid)) {
-    await updateDoc(ref, { memberUids: arrayUnion(uid) });
-  }
+  await updateDoc(ref, {
+    ...(memberUids.includes(uid) ? {} : { memberUids: arrayUnion(uid) }),
+    [`members.${uid}`]: displayName,
+  });
   await setDoc(doc(db, 'users', uid), { groupId: code }, { merge: true });
   return code;
 }
@@ -74,11 +78,40 @@ export async function fetchGroupInfo(groupId: string): Promise<GroupInfo | null>
   const snap = await getDoc(doc(getDb(), 'groups', groupId));
   if (!snap.exists()) return null;
   const data = snap.data();
+  const memberUids: string[] = data.memberUids ?? [];
+  const members: Record<string, string> = data.members ?? {};
+
   return {
     id: groupId,
     name: data.name ?? 'Mon foyer',
-    memberCount: (data.memberUids ?? []).length,
+    memberCount: memberUids.length,
+    // Un membre ayant rejoint avant l'ajout des prenoms n'a pas d'entree :
+    // on lui en fabrique une plutot que d'afficher un trou.
+    members: Object.fromEntries(
+      memberUids.map((uid) => [uid, members[uid] ?? 'Membre du foyer']),
+    ),
   };
+}
+
+/**
+ * S'assure que le prenom de l'utilisateur figure bien dans le foyer.
+ * Necessaire pour les foyers crees avant l'ajout des prenoms, et pour
+ * repercuter un changement de prenom.
+ */
+export async function ensureMemberName(
+  groupId: string,
+  uid: string,
+  displayName: string,
+): Promise<boolean> {
+  const ref = doc(getDb(), 'groups', groupId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return false;
+
+  const current = (snap.data().members ?? {})[uid];
+  if (current === displayName) return false;
+
+  await updateDoc(ref, { [`members.${uid}`]: displayName });
+  return true;
 }
 
 export async function fetchUserGroupId(uid: string): Promise<string | null> {

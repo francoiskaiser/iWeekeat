@@ -10,8 +10,9 @@ const ACCENT = "#FF7A41";
 // Config des onglets : nom de route -> icône + libellé
 const TABS: Record<string, { icon: any; label: string }> = {
   index: { icon: "home", label: "Accueil" },
-  planner: { icon: "calendar", label: "Planning" },
-  edit: { icon: "restaurant", label: "Plats" },
+  calendar: { icon: "calendar", label: "Agenda" },
+  planner: { icon: "restaurant", label: "Semainier" },
+  edit: { icon: "list", label: "Plats" },
   shopping: { icon: "cart", label: "Courses" },
 };
 
@@ -62,6 +63,7 @@ export default function TabsLayout() {
     <AppProvider>
       <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <CustomTabBar {...props} />}>
         <Tabs.Screen name="index" />
+        <Tabs.Screen name="calendar" />
         <Tabs.Screen name="planner" />
         <Tabs.Screen name="edit" />
         <Tabs.Screen name="shopping" />
@@ -85,19 +87,21 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
   },
+  // Espacements resserres : avec cinq onglets, la pastille active plus quatre
+  // icones doivent tenir sur un ecran de 360 px de large.
   item: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     height: 44,
     borderRadius: 22,
-    paddingHorizontal: 12,
+    paddingHorizontal: 9,
     gap: 0,
   },
   itemActive: {
     backgroundColor: ACCENT,
-    paddingHorizontal: 16,
-    gap: 7,
+    paddingHorizontal: 13,
+    gap: 6,
   },
-  label: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  label: { color: "#fff", fontWeight: "800", fontSize: 12 },
 });
