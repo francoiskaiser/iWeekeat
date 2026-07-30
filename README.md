@@ -43,18 +43,22 @@ npm run web
 MealHelper/
 ├── app/                    # Expo Router — écrans
 │   ├── _layout.tsx         # Layout racine + providers (Auth, Theme)
-│   ├── settings.tsx        # Réglages (mode sombre)
+│   ├── login.tsx           # Connexion / inscription
+│   ├── group.tsx           # Créer ou rejoindre un foyer
+│   ├── settings.tsx        # Foyer, code de partage, mode sombre
 │   └── (tabs)/
 │       ├── index.tsx       # Accueil / tableau de bord
-│       ├── planner.tsx     # Planificateur semainier
+│       ├── calendar.tsx    # Agenda partagé du foyer
+│       ├── planner.tsx     # Semainier (repas de la semaine)
 │       ├── edit.tsx        # Garde-manger (catégories/plats/ingrédients)
 │       └── shopping.tsx    # Liste de courses + mode Clean
 ├── components/             # Composants UI réutilisables
-├── context/                # État global + persistance AsyncStorage
+├── context/                # État global, authentification, synchronisation
 ├── constants/              # Jours de la semaine
 ├── hooks/                  # Hooks partagés (couleurs de thème)
 ├── types/                  # Modèles TypeScript
-└── utils/                  # Stockage et logique métier
+├── utils/                  # Firebase, synchro, dates, logique métier
+└── firestore.rules         # Règles de sécurité (à publier dans la console)
 ```
 
 ## Fonctionnalités
@@ -81,12 +85,30 @@ MealHelper/
 - « Non, à acheter » → conservé
 - Liste finale avec **cases à cocher** pour le supermarché
 
-### 5. Réglages
+### 5. Agenda partagé
+- Vue mensuelle, événements datés avec horaires ou journée entière
+- Attribution à un ou plusieurs membres du foyer
+- Récurrence hebdomadaire, mensuelle ou annuelle
+- Le repas prévu au semainier s'affiche dans la même case
+- Rappels locaux avant l'événement (notification sur chaque téléphone)
+
+### 6. Réglages
+- Nom du foyer, membres, code de partage
 - Mode sombre
 
-## Stockage local
+## Comptes et foyers
 
-L'application fonctionne 100% hors-ligne. Toutes les données sont persistées sur l'appareil via `@react-native-async-storage/async-storage` — il n'y a pas de compte ni de synchronisation entre appareils.
+Chaque utilisateur crée un compte (e-mail + mot de passe, Firebase Auth), puis **crée un foyer** ou **rejoint** celui d'un proche avec un code à 6 caractères. Toutes les données — plats, semainier, courses, agenda — appartiennent au foyer et sont partagées entre ses membres.
+
+## Stockage et synchronisation
+
+L'affichage se fait toujours depuis un cache local (`@react-native-async-storage/async-storage`) : l'app s'ouvre instantanément et **reste utilisable sans réseau**, ce qui compte au supermarché.
+
+La synchronisation avec Firestore se fait à l'ouverture de l'app, au retour au premier plan, et après chaque modification. Si le téléphone a des changements non envoyés (saisie hors ligne), ils sont poussés en priorité ; sinon le foyer fait autorité.
+
+## Configuration Firebase
+
+La configuration client vit dans `app.json` (`extra.firebase`). Elle est **publique par conception** — la sécurité repose entièrement sur `firestore.rules`, qui doit être publié dans la console Firebase (*Firestore Database → Règles*).
 
 ## Stack technique
 

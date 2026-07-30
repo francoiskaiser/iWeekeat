@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { CalendarEvent } from '@/types';
 import { toDateKey } from '@/utils/date';
+import { requestReminderPermission } from '@/utils/reminders';
 import {
   WEEKDAY_INITIALS, buildMonthMatrix, eventsOnDate, formatEventTime, monthLabel, parseDateKey,
 } from '@/utils/calendar';
@@ -24,6 +25,7 @@ export default function CalendarScreen() {
   const [selected, setSelected] = useState(todayKey);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
+  const [permissionRefused, setPermissionRefused] = useState(false);
 
   const events = useMemo(() => data.events ?? [], [data.events]);
   const weeks = useMemo(() => buildMonthMatrix(cursor.year, cursor.month), [cursor]);
@@ -55,6 +57,14 @@ export default function CalendarScreen() {
     if (editing) updateEvent(editing.id, values);
     else addEvent(values);
     setEditorOpen(false);
+
+    // On ne demande l'autorisation qu'au moment ou elle sert vraiment,
+    // plutot qu'au premier lancement de l'app.
+    if (values.reminderMinutes !== null && values.reminderMinutes !== undefined) {
+      requestReminderPermission().then((granted) => {
+        if (!granted) setPermissionRefused(true);
+      });
+    }
   };
 
   const whoLabel = (event: CalendarEvent): string | null => {
@@ -81,6 +91,17 @@ export default function CalendarScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {permissionRefused && (
+          <View style={styles.warnBanner}>
+            <Ionicons name="notifications-off-outline" size={18} color="#b45309" />
+            <Text style={styles.warnText}>
+              Les notifications sont bloquees : l&apos;evenement est bien enregistre,
+              mais aucun rappel ne s&apos;affichera. Autorisez-les dans les reglages
+              du telephone.
+            </Text>
+          </View>
+        )}
 
         {/* NAVIGATION MOIS */}
         <View style={[styles.monthNav, { backgroundColor: card, borderColor: border }]}>
@@ -236,6 +257,8 @@ const styles = StyleSheet.create({
   todayBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   scroll: { paddingHorizontal: 20, paddingBottom: 120 },
 
+  warnBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
+  warnText: { flex: 1, color: '#b45309', fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 10, marginBottom: 12 },
   navBtn: { padding: 6 },
   monthLabel: { fontSize: 17, fontWeight: '800' },

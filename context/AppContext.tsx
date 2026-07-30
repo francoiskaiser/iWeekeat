@@ -5,6 +5,7 @@ import { generateId, generateShoppingList } from "@/utils/helpers";
 import { loadAppData, loadPendingChanges, saveAppData, savePendingChanges } from "@/utils/storage";
 import { pullGroupData, pushGroupData } from "@/utils/remote";
 import { getUpcomingDateKeys, isDateKeyUpcoming } from "@/utils/date";
+import { rescheduleReminders } from "@/utils/reminders";
 
 import { useAuth } from "./AuthContext";
 
@@ -54,7 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<ExtendedAppData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { groupId } = useAuth();
+  const { groupId, user } = useAuth();
 
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -162,6 +163,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const syncNow = useCallback(() => {
     if (groupId) reconcile(groupId);
   }, [groupId, reconcile]);
+
+  // Les rappels sont replanifies des que les evenements changent, qu'ils
+  // viennent d'une saisie locale ou d'une synchronisation : ainsi un
+  // rendez-vous ajoute par l'autre telephone declenche aussi une alerte ici.
+  const uid = user?.uid;
+  const events = data?.events;
+  useEffect(() => {
+    if (!uid || !events) return;
+    rescheduleReminders(events, uid);
+  }, [events, uid]);
 
   const addCategory = useCallback((name: string) => {
     const trimmed = name.trim();
