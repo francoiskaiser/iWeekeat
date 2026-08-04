@@ -29,8 +29,10 @@ export default function PlannerScreen() {
   const dashBg = isDarkMode ? '#33415555' : 'rgba(255,255,255,0.4)';
   const dashBorder = isDarkMode ? '#475569' : '#e2d9cf';
 
-  const { data, setDayPlan, resetWeekPlan, randomizeWeek } = useApp();
+  const { data, addDayPlan, removeDayPlan, clearDay, resetWeekPlan, randomizeWeek } = useApp();
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  // Index du repas en cours de modification ; null = ajout d'un nouveau repas.
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftCategoryId, setDraftCategoryId] = useState("");
   const [draftDishId, setDraftDishId] = useState("");
   const dishPickerRef = useRef<NativePickerRef>(null);
@@ -59,33 +61,53 @@ export default function PlannerScreen() {
   const dishOptions = useMemo(() => draftDishes.map((d) => ({ label: d.name, value: d.id })), [draftDishes]);
 
   const plannedThisWeek = useMemo(
-    () => visibleThisWeek.filter((d) => data.weekPlan[d.dateKey]).length,
+    () => visibleThisWeek.filter((d) => (data.weekPlan[d.dateKey] ?? []).length > 0).length,
     [visibleThisWeek, data.weekPlan]
   );
   const plannedNextWeek = useMemo(
-    () => nextWeek.filter((d) => data.weekPlan[d.dateKey]).length,
+    () => nextWeek.filter((d) => (data.weekPlan[d.dateKey] ?? []).length > 0).length,
     [nextWeek, data.weekPlan]
   );
 
-  const openDay = (dateKey: string) => {
-    const existing = data.weekPlan[dateKey];
-    if (expandedDay === dateKey) { setExpandedDay(null); return; }
+  const closeEditor = () => {
+    setExpandedDay(null); setEditingIndex(null);
+    setDraftCategoryId(""); setDraftDishId("");
+  };
+
+  /** Ouvre l'editeur pour ajouter un repas a ce jour. */
+  const openDayForAdd = (dateKey: string) => {
+    if (expandedDay === dateKey && editingIndex === null) { closeEditor(); return; }
     setExpandedDay(dateKey);
+    setEditingIndex(null);
+    setDraftCategoryId(""); setDraftDishId("");
+  };
+
+  /** Ouvre l'editeur sur un repas deja present, pour le remplacer. */
+  const openDayForEdit = (dateKey: string, index: number) => {
+    if (expandedDay === dateKey && editingIndex === index) { closeEditor(); return; }
+    const existing = (data.weekPlan[dateKey] ?? [])[index];
+    setExpandedDay(dateKey);
+    setEditingIndex(index);
     setDraftCategoryId(existing?.categoryId ?? "");
     setDraftDishId(existing?.dishId ?? "");
   };
+
   const handleCategoryChange = (categoryId: string) => {
     setDraftCategoryId(categoryId); setDraftDishId("");
     setTimeout(() => { dishPickerRef.current?.open(); }, 150);
   };
+
   const validateDay = () => {
     if (!expandedDay || !draftCategoryId || !draftDishId) { Alert.alert("Sélection incomplète", "Choisissez une catégorie et un plat."); return; }
-    setDayPlan(expandedDay, { categoryId: draftCategoryId, dishId: draftDishId });
-    setExpandedDay(null);
+    addDayPlan(expandedDay, { categoryId: draftCategoryId, dishId: draftDishId }, editingIndex ?? undefined);
+    closeEditor();
   };
-  const clearDay = () => {
+
+  const removeCurrentMeal = () => {
     if (!expandedDay) return;
-    setDayPlan(expandedDay, null); setDraftCategoryId(""); setDraftDishId(""); setExpandedDay(null);
+    if (editingIndex !== null) removeDayPlan(expandedDay, editingIndex);
+    else clearDay(expandedDay);
+    closeEditor();
   };
 
   const handleShare = () => {
@@ -100,9 +122,7 @@ export default function PlannerScreen() {
     setConfirmModal({ visible: true, title: "Réinitialiser", message: "Voulez-vous vraiment effacer les repas planifiés sur cette période ?", icon: "trash-outline", confirmText: "Tout effacer", confirmColor: "#ef4444", onConfirm: () => { resetWeekPlan(days.map((d) => d.dateKey)); closeConfirmModal(); } });
   };
 
-  const getDayInfo = (dateKey: string): DayInfo => {
-    const plan: DayPlan | null | undefined = data.weekPlan[dateKey];
-    if (!plan) return { meal: null, catName: null, color: "#cbd5e1" };
+  const getMealInfo = (plan: DayPlan): DayInfo => {
     const category = data.categories.find((c) => c.id === plan.categoryId);
     const dish = data.dishes.find((d) => d.id === plan.dishId);
     const catNameLower = category?.name?.toLowerCase() || "default";
@@ -114,35 +134,61 @@ export default function PlannerScreen() {
   };
 
   const renderDayCard = (day: WeekDay) => {
-    const info = getDayInfo(day.dateKey);
-    const isExpanded = expandedDay === day.dateKey;
-    const isPlanned = !!data.weekPlan[day.dateKey];
+    const meals = data.weekPlan[day.dateKey] ?? [];
     const isToday = day.dateKey === todayKey;
+    const isExpanded = expandedDay === day.dateKey;
+    const accent = isToday ? '#FF7A41' : borderColor;
 
     return (
       <View key={day.dateKey} style={styles.cardWrapper}>
-        {isPlanned ? (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => openDay(day.dateKey)}
-            style={[styles.dayCard, { backgroundColor: cardBgColor, borderColor: isToday ? '#FF7A41' : borderColor, borderWidth: isToday ? 2 : 1 },
+        {meals.length > 0 ? (
+          <View
+            style={[styles.dayCard, { backgroundColor: cardBgColor, borderColor: accent, borderWidth: isToday ? 2 : 1 },
               isToday && styles.dayCardToday, isExpanded && styles.cardExpandedActive]}
           >
-            <View style={[styles.dateBadge, { backgroundColor: isToday ? '#FF7A4115' : (isDarkMode ? '#1e293b' : '#f8fafc') }]}>
-              <Text style={[styles.dateShort, { color: isToday ? '#FF7A41' : '#94a3b8' }]}>{day.short.toUpperCase()}</Text>
-              <Text style={[styles.dateNum, { color: isToday ? '#FF7A41' : subTextColor }]}>{day.date.getDate()}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.dayMetaRow}>
-                <View style={[styles.dot, { backgroundColor: info.color }]} />
-                <Text style={[styles.dayMeta, { color: isToday ? '#FF7A41' : subTextColor }]}>{isToday ? "AUJOURD'HUI" : (info.catName ?? day.label)}</Text>
+            <View style={styles.dayCardHead}>
+              <View style={[styles.dateBadge, { backgroundColor: isToday ? '#FF7A4115' : (isDarkMode ? '#1e293b' : '#f8fafc') }]}>
+                <Text style={[styles.dateShort, { color: isToday ? '#FF7A41' : '#94a3b8' }]}>{day.short.toUpperCase()}</Text>
+                <Text style={[styles.dateNum, { color: isToday ? '#FF7A41' : subTextColor }]}>{day.date.getDate()}</Text>
               </View>
-              <Text style={[styles.mealName, { color: textColor }]}>{info.meal}</Text>
+              <Text style={[styles.dayMeta, { color: isToday ? '#FF7A41' : subTextColor }]}>
+                {isToday ? "AUJOURD'HUI" : day.label}
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={isToday ? '#FF7A41' : '#cbd5e1'} />
-          </TouchableOpacity>
+
+            {meals.map((plan, index) => {
+              const info = getMealInfo(plan);
+              const isEditingThis = isExpanded && editingIndex === index;
+              return (
+                <TouchableOpacity
+                  key={`${day.dateKey}-${index}`}
+                  activeOpacity={0.7}
+                  onPress={() => openDayForEdit(day.dateKey, index)}
+                  style={[styles.mealRow, { borderTopColor: borderColor }, isEditingThis && styles.mealRowActive]}
+                >
+                  <View style={[styles.dot, { backgroundColor: info.color }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.mealName, { color: textColor }]}>{info.meal}</Text>
+                    {info.catName && (
+                      <Text style={[styles.mealCat, { color: subTextColor }]}>{info.catName}</Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              style={[styles.addMoreRow, { borderTopColor: borderColor }]}
+              onPress={() => openDayForAdd(day.dateKey)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#10B981" />
+              <Text style={styles.addMoreText}>Ajouter un autre repas</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
-          <TouchableOpacity activeOpacity={0.7} onPress={() => openDay(day.dateKey)}
+          <TouchableOpacity activeOpacity={0.7} onPress={() => openDayForAdd(day.dateKey)}
             style={[styles.emptyCard, { backgroundColor: dashBg, borderColor: isToday ? '#FF7A41' : dashBorder }, isExpanded && styles.cardExpandedActive]}>
             <View style={[styles.dateBadge, { backgroundColor: cardBgColor, borderWidth: 1, borderColor }]}>
               <Text style={[styles.dateShort, { color: '#94a3b8' }]}>{day.short.toUpperCase()}</Text>
@@ -154,16 +200,20 @@ export default function PlannerScreen() {
         )}
 
         {isExpanded && (
-          <View style={[styles.editorContainer, { backgroundColor: cardBgColor, borderColor: isToday ? '#FF7A41' : borderColor }]}>
+          <View style={[styles.editorContainer, { backgroundColor: cardBgColor, borderColor: accent }]}>
             <NativePicker label="Catégorie" selectedValue={draftCategoryId} onValueChange={handleCategoryChange} options={categoryOptions as PickerOption[]} placeholder="Choisir une catégorie" />
             <NativePicker ref={dishPickerRef} label="Plat" selectedValue={draftDishId} onValueChange={setDraftDishId} options={dishOptions as PickerOption[]} placeholder={draftCategoryId ? "Choisir un plat" : "Sélectionnez d'abord une catégorie"} enabled={!!draftCategoryId && dishOptions.length > 0} />
             <View style={styles.editorActions}>
               <TouchableOpacity style={styles.btnValidate} onPress={validateDay}>
-                <Text style={styles.btnValidateText}>Valider</Text>
+                <Text style={styles.btnValidateText}>
+                  {editingIndex !== null ? 'Remplacer' : 'Ajouter'}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btnClear} onPress={clearDay}>
-                <Ionicons name="trash-outline" size={20} color="#ef4444" />
-              </TouchableOpacity>
+              {meals.length > 0 && (
+                <TouchableOpacity style={styles.btnClear} onPress={removeCurrentMeal}>
+                  <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -279,7 +329,13 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: '#FF7A41', borderRadius: 4 },
 
   cardWrapper: { marginBottom: 12 },
-  dayCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 18, padding: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  dayCard: { borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  dayCardHead: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 10 },
+  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1 },
+  mealRowActive: { opacity: 0.6 },
+  mealCat: { fontSize: 11, fontWeight: '600', marginTop: 1 },
+  addMoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderTopWidth: 1 },
+  addMoreText: { color: '#10B981', fontSize: 13, fontWeight: '700' },
   dayCardToday: { shadowColor: '#FF7A41', shadowOpacity: 0.18, shadowRadius: 14, elevation: 5 },
   cardExpandedActive: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 18, padding: 14, borderWidth: 2, borderStyle: 'dashed' },
@@ -289,7 +345,7 @@ const styles = StyleSheet.create({
   dayMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   dayMeta: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
-  mealName: { fontSize: 16, fontWeight: '800', marginTop: 2 },
+  mealName: { fontSize: 15, fontWeight: '800' },
   emptyText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#94a3b8' },
   addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FF7A41', alignItems: 'center', justifyContent: 'center' },
 

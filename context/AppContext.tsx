@@ -29,7 +29,12 @@ interface AppContextValue {
   addIngredient: (dishId: string, name: string) => void;
   updateIngredient: (id: string, name: string) => void;
   deleteIngredient: (id: string) => void;
-  setDayPlan: (dateKey: string, plan: DayPlan | null) => void;
+  /** Ajoute un repas au jour, ou le remplace si un index est fourni. */
+  addDayPlan: (dateKey: string, plan: DayPlan, replaceIndex?: number) => void;
+  /** Retire un repas precis du jour. */
+  removeDayPlan: (dateKey: string, index: number) => void;
+  /** Vide entierement la journee. */
+  clearDay: (dateKey: string) => void;
   generateList: () => void;
   toggleShoppingItem: (id: string) => void;
   removeShoppingItem: (id: string) => void;
@@ -191,7 +196,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const dishIds = prev.dishes.filter((d) => d.categoryId === id).map((d) => d.id);
       const newWeekPlan = { ...prev.weekPlan };
       for (const dateKey of Object.keys(newWeekPlan)) {
-        if (newWeekPlan[dateKey]?.categoryId === id) newWeekPlan[dateKey] = null;
+        const kept = newWeekPlan[dateKey].filter((p) => p.categoryId !== id);
+        if (kept.length) newWeekPlan[dateKey] = kept;
+        else delete newWeekPlan[dateKey];
       }
       return {
         ...prev,
@@ -219,7 +226,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist((prev) => {
       const newWeekPlan = { ...prev.weekPlan };
       for (const dateKey of Object.keys(newWeekPlan)) {
-        if (newWeekPlan[dateKey]?.dishId === id) newWeekPlan[dateKey] = null;
+        const kept = newWeekPlan[dateKey].filter((p) => p.dishId !== id);
+        if (kept.length) newWeekPlan[dateKey] = kept;
+        else delete newWeekPlan[dateKey];
       }
       return {
         ...prev,
@@ -246,16 +255,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist((prev) => ({ ...prev, ingredients: prev.ingredients.filter((i) => i.id !== id) }));
   }, [persist]);
 
-  const setDayPlan = useCallback((dateKey: string, plan: DayPlan | null) => {
+  const writeDay = useCallback((dateKey: string, next: DayPlan[]) => {
     persist((prev) => {
-      const invalidatesShopping = isDateKeyUpcoming(dateKey);
+      const weekPlan = { ...prev.weekPlan };
+      if (next.length) weekPlan[dateKey] = next;
+      else delete weekPlan[dateKey];
+
       return {
         ...prev,
-        weekPlan: { ...prev.weekPlan, [dateKey]: plan },
-        shoppingListGenerated: invalidatesShopping ? false : prev.shoppingListGenerated,
+        weekPlan,
+        shoppingListGenerated: isDateKeyUpcoming(dateKey) ? false : prev.shoppingListGenerated,
       };
     });
   }, [persist]);
+
+  const addDayPlan = useCallback((dateKey: string, plan: DayPlan, replaceIndex?: number) => {
+    const current = dataRef.current?.weekPlan[dateKey] ?? [];
+    const next = [...current];
+    if (replaceIndex !== undefined && replaceIndex >= 0 && replaceIndex < next.length) {
+      next[replaceIndex] = plan;
+    } else {
+      next.push(plan);
+    }
+    writeDay(dateKey, next);
+  }, [writeDay]);
+
+  const removeDayPlan = useCallback((dateKey: string, index: number) => {
+    const current = dataRef.current?.weekPlan[dateKey] ?? [];
+    writeDay(dateKey, current.filter((_, i) => i !== index));
+  }, [writeDay]);
+
+  const clearDay = useCallback((dateKey: string) => {
+    writeDay(dateKey, []);
+  }, [writeDay]);
 
   const generateList = useCallback(() => {
     persist((prev) => {
@@ -357,7 +389,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetWeekPlan = useCallback((dateKeys: string[]) => {
     persist((prev) => {
       const newWeekPlan = { ...prev.weekPlan };
-      for (const dateKey of dateKeys) newWeekPlan[dateKey] = null;
+      for (const dateKey of dateKeys) delete newWeekPlan[dateKey];
 
       const touchesUpcoming = dateKeys.some((k) => isDateKeyUpcoming(k));
       return {
@@ -375,9 +407,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const shuffledDishes = [...prev.dishes].sort(() => 0.5 - Math.random());
       const newWeekPlan = { ...prev.weekPlan };
 
+      // Le tirage aleatoire remplace la journee par un unique repas.
       dateKeys.forEach((dateKey, index) => {
         const dish = shuffledDishes[index % shuffledDishes.length];
-        newWeekPlan[dateKey] = { categoryId: dish.categoryId, dishId: dish.id };
+        newWeekPlan[dateKey] = [{ categoryId: dish.categoryId, dishId: dish.id }];
       });
 
       const touchesUpcoming = dateKeys.some((k) => isDateKeyUpcoming(k));
@@ -425,14 +458,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!data) return null;
     return {
       data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
-      addIngredient, updateIngredient, deleteIngredient, setDayPlan, generateList, toggleShoppingItem,
+      addIngredient, updateIngredient, deleteIngredient, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
       removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
       addEvent, updateEvent, deleteEvent, deleteOccurrence,
       syncing, syncError, syncNow,
     };
   }, [
     data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
-    addIngredient, updateIngredient, deleteIngredient, setDayPlan, generateList, toggleShoppingItem,
+    addIngredient, updateIngredient, deleteIngredient, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
     addEvent, updateEvent, deleteEvent, deleteOccurrence,
     syncing, syncError, syncNow,

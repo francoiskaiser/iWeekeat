@@ -29,13 +29,17 @@ export default function HomeScreen() {
   const dateLabel = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const dateLabelCap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
 
-  const todayPlan = data.weekPlan[todayKey];
-  const todayDish = todayPlan ? data.dishes.find((d) => d.id === todayPlan.dishId) : null;
+  const todayDishes = useMemo(
+    () => (data.weekPlan[todayKey] ?? [])
+      .map((plan) => data.dishes.find((d) => d.id === plan.dishId)?.name)
+      .filter((n): n is string => Boolean(n)),
+    [data.weekPlan, data.dishes, todayKey],
+  );
 
   // --- Compteurs (semaine en cours uniquement) ---
   const currentWeekKeys = useMemo(() => getCurrentWeekDateKeys(today), [today]);
   const plannedCount = useMemo(
-    () => currentWeekKeys.filter((k) => data.weekPlan[k]).length,
+    () => currentWeekKeys.filter((k) => (data.weekPlan[k] ?? []).length > 0).length,
     [currentWeekKeys, data.weekPlan]
   );
   const shoppingCount = data.shoppingList.filter((i) => !i.checked).length;
@@ -69,11 +73,11 @@ export default function HomeScreen() {
         {/* CARTE "CE SOIR" */}
         <TouchableOpacity activeOpacity={0.9} style={styles.tonightCard} onPress={() => router.push('/planner')}>
           <Text style={styles.tonightEyebrow}>🍽️ CE SOIR</Text>
-          <Text style={styles.tonightMeal}>{todayDish ? todayDish.name : "Rien de prévu"}</Text>
+          <Text style={styles.tonightMeal}>{todayDishes.length ? todayDishes.join(" + ") : "Rien de prévu"}</Text>
           <View style={styles.tonightActions}>
             <View style={styles.tonightBtnGhost}>
-              <Ionicons name={todayDish ? "swap-horizontal" : "add"} size={16} color="#fff" />
-              <Text style={styles.tonightBtnGhostText}>{todayDish ? "Changer" : "Planifier"}</Text>
+              <Ionicons name={todayDishes.length ? "swap-horizontal" : "add"} size={16} color="#fff" />
+              <Text style={styles.tonightBtnGhostText}>{todayDishes.length ? "Changer" : "Planifier"}</Text>
             </View>
             <TouchableOpacity style={styles.tonightBtnSolid} onPress={() => router.push('/shopping')}>
               <Ionicons name="cart" size={16} color="#FF7A41" />

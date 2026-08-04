@@ -1,6 +1,7 @@
 import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { AppData } from '@/types';
 import { getDb } from './firebase';
+import { normalizeWeekPlan } from './storage';
 
 // Les donnees du foyer sont reparties en trois documents plutot qu'un seul
 // gros blob : si l'un edite le garde-manger pendant que l'autre coche des
@@ -44,7 +45,9 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
 
   const [pantry, planning, shopping, calendar] = snaps.map((s) => (s.exists() ? s.data() : {}));
 
-  return {
+  // Un foyer alimente par une version anterieure peut encore stocker un seul
+  // repas par jour : on convertit ici comme pour le cache local.
+  return normalizeWeekPlan({
     categories: pantry.categories ?? [],
     dishes: pantry.dishes ?? [],
     ingredients: pantry.ingredients ?? [],
@@ -53,7 +56,7 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
     recurringExtras: shopping.recurringExtras ?? [],
     shoppingListGenerated: shopping.shoppingListGenerated ?? false,
     events: calendar.events ?? [],
-  };
+  } as SharedAppData) as SharedAppData;
 }
 
 /** Ecrit les donnees du foyer. Les trois documents partent en une seule fois. */

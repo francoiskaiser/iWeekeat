@@ -13,6 +13,9 @@ import {
   WEEKDAY_INITIALS, buildMonthMatrix, eventsOnDate, formatEventTime, monthLabel, parseDateKey,
 } from '@/utils/calendar';
 
+/** Nombre de libelles affichables dans une case du mois avant resume. */
+const MAX_CHIPS_PER_DAY = 2;
+
 export default function CalendarScreen() {
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
   const { data, addEvent, updateEvent, deleteEvent, deleteOccurrence } = useApp();
@@ -31,10 +34,18 @@ export default function CalendarScreen() {
   const weeks = useMemo(() => buildMonthMatrix(cursor.year, cursor.month), [cursor]);
   const dayEvents = useMemo(() => eventsOnDate(events, selected), [events, selected]);
 
-  const selectedDish = useMemo(() => {
-    const plan = data.weekPlan[selected];
-    return plan ? data.dishes.find((d) => d.id === plan.dishId) ?? null : null;
-  }, [data.weekPlan, data.dishes, selected]);
+  const mealNameFor = (dateKey: string): string => {
+    const first = (data.weekPlan[dateKey] ?? [])[0];
+    if (!first) return '';
+    return data.dishes.find((d) => d.id === first.dishId)?.name ?? 'Repas';
+  };
+
+  const selectedDishes = useMemo(
+    () => (data.weekPlan[selected] ?? [])
+      .map((plan) => data.dishes.find((d) => d.id === plan.dishId)?.name)
+      .filter((n): n is string => Boolean(n)),
+    [data.weekPlan, data.dishes, selected],
+  );
 
   const shiftMonth = (delta: number) => {
     setCursor(({ year, month }) => {
@@ -129,8 +140,14 @@ export default function CalendarScreen() {
                 const inMonth = day.getMonth() === cursor.month;
                 const isToday = key === todayKey;
                 const isSelected = key === selected;
-                const count = eventsOnDate(events, key).length;
-                const hasMeal = Boolean(data.weekPlan[key]);
+                const dayItems = eventsOnDate(events, key);
+                const mealName = mealNameFor(key);
+
+                // La case est etroite : deux libelles au maximum, le reste
+                // est resume par un compteur.
+                const chips = dayItems.slice(0, MAX_CHIPS_PER_DAY);
+                const showMeal = chips.length < MAX_CHIPS_PER_DAY && Boolean(mealName);
+                const overflow = dayItems.length - chips.length + (mealName && !showMeal ? 1 : 0);
 
                 return (
                   <TouchableOpacity
@@ -153,12 +170,23 @@ export default function CalendarScreen() {
                         {day.getDate()}
                       </Text>
                     </View>
-                    <View style={styles.dots}>
-                      {count > 0 && (
-                        <View style={[styles.dot, { backgroundColor: isSelected ? '#FF7A41' : '#0EA5E9' }]} />
+                    <View style={styles.chips}>
+                      {chips.map((event, i) => (
+                        <View key={key + '-e-' + i} style={styles.chipEvent}>
+                          <Text style={styles.chipEventText} numberOfLines={1}>
+                            {event.title}
+                          </Text>
+                        </View>
+                      ))}
+                      {showMeal && (
+                        <View style={styles.chipMeal}>
+                          <Text style={styles.chipMealText} numberOfLines={1}>
+                            {mealName}
+                          </Text>
+                        </View>
                       )}
-                      {hasMeal && (
-                        <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
+                      {overflow > 0 && (
+                        <Text style={[styles.chipMore, { color: subText }]}>+{overflow}</Text>
                       )}
                     </View>
                   </TouchableOpacity>
@@ -170,11 +198,11 @@ export default function CalendarScreen() {
 
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: '#0EA5E9' }]} />
+            <View style={[styles.legendSwatch, { backgroundColor: '#0EA5E915', borderColor: '#0EA5E9' }]} />
             <Text style={[styles.legendText, { color: subText }]}>Evenement</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.legendSwatch, { backgroundColor: '#10B98115', borderColor: '#10B981' }]} />
             <Text style={[styles.legendText, { color: subText }]}>Repas prevu</Text>
           </View>
         </View>
@@ -182,10 +210,10 @@ export default function CalendarScreen() {
         {/* JOUR SELECTIONNE */}
         <Text style={[styles.dayHeading, { color: text }]}>{selectedLabel}</Text>
 
-        {selectedDish && (
+        {selectedDishes.length > 0 && (
           <View style={[styles.mealCard, { backgroundColor: card, borderColor: border }]}>
             <Ionicons name="restaurant" size={18} color="#10B981" />
-            <Text style={[styles.mealText, { color: text }]}>{selectedDish.name}</Text>
+            <Text style={[styles.mealText, { color: text }]}>{selectedDishes.join(' + ')}</Text>
             <Text style={[styles.mealHint, { color: subText }]}>au menu</Text>
           </View>
         )}
@@ -267,18 +295,24 @@ const styles = StyleSheet.create({
   weekdayRow: { flexDirection: 'row', marginBottom: 6 },
   weekdayText: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '800' },
   weekRow: { flexDirection: 'row' },
-  dayCell: { flex: 1, alignItems: 'center', paddingVertical: 3 },
-  dayInner: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dayCell: { flex: 1, alignItems: 'center', paddingVertical: 2, minHeight: 70 },
+  dayInner: { width: 30, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   dayToday: { borderWidth: 2, borderColor: '#FF7A41' },
   daySelected: { backgroundColor: '#FF7A41' },
-  dayNum: { fontSize: 14, fontWeight: '700' },
+  dayNum: { fontSize: 13, fontWeight: '700' },
   dayNumToday: { color: '#FF7A41', fontWeight: '900' },
   dayNumSelected: { color: '#fff', fontWeight: '900' },
-  dots: { flexDirection: 'row', gap: 3, height: 8, alignItems: 'center' },
-  dot: { width: 5, height: 5, borderRadius: 3 },
+
+  chips: { width: '100%', paddingHorizontal: 1, gap: 2, marginTop: 2 },
+  chipEvent: { backgroundColor: '#0EA5E915', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
+  chipEventText: { color: '#0EA5E9', fontSize: 9, fontWeight: '800' },
+  chipMeal: { backgroundColor: '#10B98115', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
+  chipMealText: { color: '#10B981', fontSize: 9, fontWeight: '800' },
+  chipMore: { fontSize: 9, fontWeight: '800', textAlign: 'center' },
 
   legend: { flexDirection: 'row', gap: 18, justifyContent: 'center', marginTop: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendSwatch: { width: 12, height: 9, borderRadius: 3, borderWidth: 1 },
   legendText: { fontSize: 12, fontWeight: '600' },
 
   dayHeading: { fontSize: 19, fontWeight: '900', marginTop: 26, marginBottom: 12, textTransform: 'capitalize' },

@@ -20,12 +20,33 @@ function migrateLegacyWeekPlan(data: AppData): AppData {
   };
 }
 
+/**
+ * Un jour ne portait qu'un seul repas (`DayPlan | null`) ; il en porte
+ * desormais une liste. On convertit a la lecture plutot que de demander
+ * une resaisie, aussi bien pour le cache local que pour les donnees du foyer.
+ */
+export function normalizeWeekPlan(data: AppData): AppData {
+  const source = (data.weekPlan ?? {}) as Record<string, unknown>;
+  const weekPlan: AppData['weekPlan'] = {};
+
+  for (const [dateKey, value] of Object.entries(source)) {
+    if (Array.isArray(value)) {
+      if (value.length) weekPlan[dateKey] = value as AppData['weekPlan'][string];
+    } else if (value && typeof value === 'object') {
+      weekPlan[dateKey] = [value as AppData['weekPlan'][string][number]];
+    }
+    // null / undefined : la journee reste sans repas, on n'ecrit pas de cle.
+  }
+
+  return { ...data, weekPlan };
+}
+
 export const loadAppData = async (groupId: string): Promise<AppData> => {
   const STORAGE_KEY = `@meal_helper_data_${groupId}`;
   try {
     const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
     if (jsonValue == null) return createDefaultData();
-    return migrateLegacyWeekPlan(JSON.parse(jsonValue));
+    return normalizeWeekPlan(migrateLegacyWeekPlan(JSON.parse(jsonValue)));
   } catch (e) {
     console.error('Erreur de lecture locale :', e);
     return createDefaultData();

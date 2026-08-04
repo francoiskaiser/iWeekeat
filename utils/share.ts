@@ -5,10 +5,10 @@
 import { Share } from "react-native";
 
 type ShoppingItem = { id: string; name: string; checked: boolean; isExtra?: boolean };
-type DayPlan = { categoryId: string; dishId: string } | null;
+type DayPlan = { categoryId: string; dishId: string };
 
 type ShareData = {
-  weekPlan: Record<string, DayPlan>;
+  weekPlan: Record<string, DayPlan[]>;
   dishes: { id: string; categoryId: string; name: string }[];
   categories: { id: string; name: string }[];
   shoppingList: ShoppingItem[];
@@ -20,13 +20,10 @@ type ShareWeekDay = { dateKey: string; label: string };
 export function buildWeekMenuText(weekDays: ShareWeekDay[], data: ShareData): string {
   const lines: string[] = ["🍽️ *Menu de la semaine*", ""];
   for (const { dateKey, label } of weekDays) {
-    const plan = data.weekPlan[dateKey];
-    let meal = "—";
-    if (plan) {
-      const dish = data.dishes.find((d) => d.id === plan.dishId);
-      if (dish) meal = dish.name;
-    }
-    lines.push(`${label} : ${meal}`);
+    const names = (data.weekPlan[dateKey] ?? [])
+      .map((plan) => data.dishes.find((d) => d.id === plan.dishId)?.name)
+      .filter((n): n is string => Boolean(n));
+    lines.push(`${label} : ${names.length ? names.join(" + ") : "—"}`);
   }
   lines.push("", "_Envoyé depuis MealHelper_");
   return lines.join("\n");

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from "@/context/AppContext";
@@ -117,7 +117,17 @@ export default function EditScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
         <Breadcrumb />
 
         {/* Recherche */}
@@ -174,6 +184,7 @@ export default function EditScreen() {
           <RowCard key={ing.id} icon="leaf" title={ing.name} subtitle="Toucher pour modifier" onPress={() => startEdit(ing.id, ing.name)} onDelete={() => deleteIngredient(ing.id)} chevron={false} />
         )))}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -193,7 +204,7 @@ const styles = StyleSheet.create({
   welcomeText: { fontSize: 15, color: '#64748b', fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: '#FF7A41', shadowOpacity: 0.1, shadowRadius: 10 },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 120 },
+  scrollContainer: { paddingHorizontal: 20, paddingBottom: 240 },
 
   breadcrumb: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 14, paddingHorizontal: 4 },
   crumb: { flexDirection: 'row', alignItems: 'center', gap: 5 },

@@ -36,7 +36,7 @@ export default function ShoppingScreen() {
 
   const upcomingKeys = useMemo(() => getUpcomingDateKeys(data.weekPlan), [data.weekPlan]);
   const plannedCount = useMemo(
-    () => upcomingKeys.filter((k) => data.weekPlan[k]).length,
+    () => upcomingKeys.filter((k) => (data.weekPlan[k] ?? []).length > 0).length,
     [upcomingKeys, data.weekPlan]
   );
 
@@ -61,7 +61,7 @@ export default function ShoppingScreen() {
 
   const ingredientToDishesMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    const plannedDishIds = upcomingKeys.map((k) => data.weekPlan[k]).filter(Boolean).map((p) => p!.dishId);
+    const plannedDishIds = upcomingKeys.flatMap((k) => data.weekPlan[k] ?? []).map((p) => p.dishId);
     plannedDishIds.forEach((dishId) => {
       const dish = data.dishes.find((d) => d.id === dishId);
       if (!dish) return;
@@ -113,7 +113,13 @@ export default function ShoppingScreen() {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+        >
 
           {/* PROGRESSION CADDIE */}
           {totalCount > 0 && (
@@ -267,7 +273,7 @@ const styles = StyleSheet.create({
   welcomeText: { fontSize: 15, color: '#64748b', fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: '#FF7A41', shadowOpacity: 0.1, shadowRadius: 10 },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 110 },
+  scrollContainer: { paddingHorizontal: 20, paddingBottom: 240 },
 
   progressCard: { borderRadius: 18, padding: 16, marginBottom: 14, elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

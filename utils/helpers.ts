@@ -46,14 +46,13 @@ export function generateShoppingList(data: AppData, dateKeys: string[]): { id: s
   const seen = new Map<string, string>();
 
   for (const dateKey of dateKeys) {
-    const plan = data.weekPlan[dateKey];
-    if (!plan) continue;
-
-    const dishIngredients = data.ingredients.filter((i) => i.dishId === plan.dishId);
-    for (const ingredient of dishIngredients) {
-      const key = normalizeIngredientName(ingredient.name);
-      if (!seen.has(key)) {
-        seen.set(key, ingredient.name.trim());
+    for (const plan of data.weekPlan[dateKey] ?? []) {
+      const dishIngredients = data.ingredients.filter((i) => i.dishId === plan.dishId);
+      for (const ingredient of dishIngredients) {
+        const key = normalizeIngredientName(ingredient.name);
+        if (!seen.has(key)) {
+          seen.set(key, ingredient.name.trim());
+        }
       }
     }
   }

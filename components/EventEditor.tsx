@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativePicker } from '@/components/NativePicker';
+import { TimePicker } from '@/components/TimePicker';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { CalendarEvent, Recurrence } from '@/types';
 import { parseDateKey } from '@/utils/calendar';
@@ -24,17 +25,6 @@ const REMINDER_OPTIONS = [
   { label: '1 heure avant', value: '60' },
   { label: 'La veille', value: '1440' },
 ];
-
-/** Accepte "1930", "19h30", "19:3" et normalise vers "19:30". */
-function normalizeTime(raw: string): string | null {
-  const digits = raw.replace(/\D/g, '').slice(0, 4);
-  if (digits.length < 3) return null;
-  const padded = digits.length === 3 ? `0${digits}` : digits;
-  const h = Number(padded.slice(0, 2));
-  const m = Number(padded.slice(2, 4));
-  if (h > 23 || m > 59) return null;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
 
 interface Props {
   visible: boolean;
@@ -57,8 +47,8 @@ export function EventEditor({
 
   const [title, setTitle] = useState('');
   const [allDay, setAllDay] = useState(true);
-  const [startRaw, setStartRaw] = useState('');
-  const [endRaw, setEndRaw] = useState('');
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
   const [note, setNote] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [recurrence, setRecurrence] = useState<Recurrence>('none');
@@ -70,8 +60,8 @@ export function EventEditor({
     if (!visible) return;
     setTitle(event?.title ?? '');
     setAllDay(event ? event.allDay : true);
-    setStartRaw(event?.startTime ?? '');
-    setEndRaw(event?.endTime ?? '');
+    setStart(event?.startTime ?? '');
+    setEnd(event?.endTime ?? '');
     setNote(event?.note ?? '');
     setAssignedTo(event?.assignedTo ?? []);
     setRecurrence(event?.recurrence ?? 'none');
@@ -102,24 +92,18 @@ export function EventEditor({
     let endTime: string | undefined;
 
     if (!allDay) {
-      const s = normalizeTime(startRaw);
-      if (!s) {
-        setError('Heure de debut invalide (format 19:30).');
+      if (!start) {
+        setError('Choisissez une heure de debut.');
         return;
       }
-      startTime = s;
+      startTime = start;
 
-      if (endRaw.trim()) {
-        const e = normalizeTime(endRaw);
-        if (!e) {
-          setError('Heure de fin invalide (format 19:30).');
-          return;
-        }
-        if (e <= s) {
+      if (end) {
+        if (end <= start) {
           setError('L’heure de fin doit suivre celle de debut.');
           return;
         }
-        endTime = e;
+        endTime = end;
       }
     }
 
@@ -144,7 +128,10 @@ export function EventEditor({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
 
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -158,7 +145,12 @@ export function EventEditor({
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
+          >
 
             <Text style={[styles.label, { color: text }]}>Titre</Text>
             <TextInput
@@ -177,28 +169,10 @@ export function EventEditor({
             {!allDay && (
               <View style={styles.timeRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: text }]}>Debut</Text>
-                  <TextInput
-                    style={[styles.input, styles.timeInput, { backgroundColor: inputBg, borderColor: border, color: text }]}
-                    placeholder="19:30"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="numbers-and-punctuation"
-                    value={startRaw}
-                    onChangeText={setStartRaw}
-                    onBlur={() => { const n = normalizeTime(startRaw); if (n) setStartRaw(n); }}
-                  />
+                  <TimePicker label="Debut" value={start} onChange={setStart} placeholder="19:30" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: text }]}>Fin (optionnel)</Text>
-                  <TextInput
-                    style={[styles.input, styles.timeInput, { backgroundColor: inputBg, borderColor: border, color: text }]}
-                    placeholder="20:30"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="numbers-and-punctuation"
-                    value={endRaw}
-                    onChangeText={setEndRaw}
-                    onBlur={() => { const n = normalizeTime(endRaw); if (n) setEndRaw(n); }}
-                  />
+                  <TimePicker label="Fin" value={end} onChange={setEnd} placeholder="Optionnel" clearable />
                 </View>
               </View>
             )}
@@ -296,12 +270,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 14, paddingBottom: 8 },
   eyebrow: { fontSize: 13, color: '#FF7A41', fontWeight: '700', textTransform: 'capitalize' },
   title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
-  scroll: { paddingHorizontal: 22, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 22, paddingBottom: 220 },
 
   label: { fontSize: 13, fontWeight: '800', marginBottom: 7, marginTop: 16, marginLeft: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 15, height: 52, fontSize: 16 },
-  timeRow: { flexDirection: 'row', gap: 12 },
-  timeInput: { fontSize: 18, fontWeight: '700', letterSpacing: 1 },
+  timeRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
   noteInput: { height: 90, paddingTop: 14, textAlignVertical: 'top' },
 
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, marginTop: 18 },

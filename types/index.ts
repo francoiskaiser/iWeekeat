@@ -31,7 +31,9 @@ export interface DayPlan {
 
 // Clé = date ISO "YYYY-MM-DD" (pas le jour de semaine) pour distinguer
 // une semaine réelle d'une autre et permettre de préparer la suivante à l'avance.
-export type WeekPlan = Record<string, DayPlan | null>;
+// Valeur = liste des repas du jour : un foyer peut en prévoir plusieurs
+// (midi et soir, ou un plat et un dessert).
+export type WeekPlan = Record<string, DayPlan[]>;
 
 export interface ShoppingItem {
   id: string;
