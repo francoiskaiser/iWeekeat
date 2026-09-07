@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -12,10 +13,16 @@ import { normalizeCode } from '@/utils/groups';
 type Mode = 'create' | 'join';
 
 export default function GroupScreen() {
-  const { displayName, createGroup, joinGroup, signOut } = useAuth();
+  const { displayName, groupId, groupName: currentGroupName, createGroup, joinGroup, signOut } = useAuth();
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
+  const params = useLocalSearchParams<{ change?: string }>();
+  const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>('create');
+  // Depuis les parametres, on arrive ici en ayant deja un foyer : l'ecran
+  // devient un changement de foyer, et non une premiere adhesion.
+  const changing = params.change === '1' && Boolean(groupId);
+
+  const [mode, setMode] = useState<Mode>(params.change === '1' ? 'join' : 'create');
   const [groupName, setGroupName] = useState(`Foyer de ${displayName}`);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +48,9 @@ export default function GroupScreen() {
       } else {
         await joinGroup(code);
       }
+      // En premiere adhesion, la garde de navigation redirige d elle-meme ;
+      // en changement de foyer elle nous laisserait sur cet ecran.
+      if (changing) router.replace('/');
     } catch (e) {
       const raw = (e as { code?: string; message?: string });
       setError(
@@ -60,16 +70,36 @@ export default function GroupScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
+          {changing && (
+            <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={20} color="#FF7A41" />
+              <Text style={styles.backLinkText}>Retour</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.header}>
             <View style={styles.iconWrapper}>
               <Ionicons name="people" size={44} color="#fff" />
             </View>
-            <Text style={[styles.title, { color: text }]}>Votre foyer</Text>
+            <Text style={[styles.title, { color: text }]}>
+              {changing ? 'Changer de foyer' : 'Votre foyer'}
+            </Text>
             <Text style={[styles.subtitle, { color: subText }]}>
-              Les membres d&apos;un meme foyer partagent leurs plats, leur semainier
-              et leur liste de courses.
+              {changing
+                ? `Vous faites actuellement partie de « ${currentGroupName ?? 'votre foyer'} ». En rejoindre un autre vous en fera sortir.`
+                : "Les membres d'un meme foyer partagent leurs plats, leur semainier et leur liste de courses."}
             </Text>
           </View>
+
+          {changing && (
+            <View style={styles.warnBox}>
+              <Ionicons name="alert-circle" size={18} color="#b45309" />
+              <Text style={styles.warnText}>
+                Les plats, le semainier, les courses et l&apos;agenda appartiennent au
+                foyer : ils resteront dans l&apos;actuel et vous verrez ceux du nouveau.
+              </Text>
+            </View>
+          )}
 
           <View style={[styles.tabs, { backgroundColor: card, borderColor: border }]}>
             <TouchableOpacity
@@ -143,9 +173,11 @@ export default function GroupScreen() {
               : <Text style={styles.mainButtonText}>{mode === 'create' ? 'Creer mon foyer' : 'Rejoindre le foyer'}</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.signOut} onPress={signOut}>
-            <Text style={[styles.signOutText, { color: subText }]}>Se deconnecter</Text>
-          </TouchableOpacity>
+          {!changing && (
+            <TouchableOpacity style={styles.signOut} onPress={signOut}>
+              <Text style={[styles.signOutText, { color: subText }]}>Se deconnecter</Text>
+            </TouchableOpacity>
+          )}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -156,6 +188,10 @@ export default function GroupScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 40 },
+  backLink: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8 },
+  backLinkText: { color: '#FF7A41', fontSize: 15, fontWeight: '700' },
+  warnBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 20 },
+  warnText: { flex: 1, color: '#b45309', fontSize: 13, lineHeight: 18, fontWeight: '600' },
   header: { alignItems: 'center', marginBottom: 30 },
   iconWrapper: { width: 84, height: 84, borderRadius: 28, backgroundColor: '#FF7A41', justifyContent: 'center', alignItems: 'center', marginBottom: 18, elevation: 6, shadowColor: '#FF7A41', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },

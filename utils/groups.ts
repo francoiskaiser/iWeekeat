@@ -1,4 +1,4 @@
-import { arrayUnion, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { arrayRemove, arrayUnion, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { getDb } from './firebase';
 
 export interface GroupInfo {
@@ -98,6 +98,26 @@ export async function joinGroup(uid: string, rawCode: string, displayName: strin
   });
   await setDoc(doc(db, 'users', uid), { groupId: code }, { merge: true });
   return code;
+}
+
+/**
+ * Quitte un foyer : on se retire de la liste des membres et on efface le
+ * rattachement sur son profil. Les donnees du foyer restent en place pour
+ * les membres qui y restent.
+ */
+export async function leaveGroup(uid: string, groupId: string): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, 'groups', groupId);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    const memberUids: string[] = snap.data().memberUids ?? [];
+    if (memberUids.includes(uid)) {
+      await updateDoc(ref, { memberUids: arrayRemove(uid) });
+    }
+  }
+
+  await setDoc(doc(db, 'users', uid), { groupId: null }, { merge: true });
 }
 
 export async function fetchGroupInfo(groupId: string): Promise<GroupInfo | null> {

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useGlobalSearchParams, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -10,6 +10,9 @@ function RootLayoutNav() {
   const { configured, user, groupId, initialized } = useAuth();
   const { isDarkMode, background, text, subText } = useThemeColors();
   const segments = useSegments();
+  // useLocalSearchParams ne verrait pas les parametres de la route enfant
+  // depuis ce layout racine : il faut la version globale.
+  const params = useGlobalSearchParams<{ change?: string }>();
   const router = useRouter();
 
   useEffect(() => {
@@ -17,16 +20,19 @@ function RootLayoutNav() {
 
     const onLogin = segments[0] === 'login';
     const onGroup = segments[0] === 'group';
+    // Visite volontaire depuis les parametres pour changer de foyer : sans ce
+    // drapeau, la garde renverrait aussitot vers l'accueil.
+    const changingGroup = onGroup && params.change === '1';
 
     if (!user) {
       if (!onLogin) router.replace('/login');
     } else if (!groupId) {
       // Connecte mais sans foyer : on ne peut pas encore afficher de donnees.
       if (!onGroup) router.replace('/group');
-    } else if (onLogin || onGroup) {
+    } else if (onLogin || (onGroup && !changingGroup)) {
       router.replace('/');
     }
-  }, [configured, initialized, user, groupId, segments, router]);
+  }, [configured, initialized, user, groupId, segments, params.change, router]);
 
   if (!configured) {
     return (

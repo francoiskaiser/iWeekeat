@@ -4,29 +4,91 @@ export function createEmptyWeekPlan(): WeekPlan {
   return {};
 }
 
-export function createDefaultData(): AppData {
-  const catPates = { id: "cat-pates", name: "Pâtes" };
-  const catRiz = { id: "cat-riz", name: "Riz" };
+/**
+ * Garde-manger propose au premier lancement : des plats de tous les jours,
+ * volontairement simples, pour que l'application soit utilisable
+ * immediatement plutot que de demander une longue saisie.
+ *
+ * Les noms de categories contiennent "viande", "poisson" et "vege" : le
+ * semainier s'en sert pour colorer les repas.
+ */
+const DEFAULT_PANTRY: { category: string; dishes: { name: string; ingredients: string[] }[] }[] = [
+  {
+    category: "Pâtes",
+    dishes: [
+      { name: "Carbonara", ingredients: ["Tagliatelles", "Lardons", "Crème fraîche", "Parmesan", "Œufs"] },
+      { name: "Bolognaise", ingredients: ["Spaghetti", "Viande hachée", "Sauce tomate", "Oignon", "Ail"] },
+      { name: "Pâtes au thon", ingredients: ["Penne", "Thon en boîte", "Sauce tomate", "Olives noires"] },
+    ],
+  },
+  {
+    category: "Riz",
+    dishes: [
+      { name: "Riz cantonais", ingredients: ["Riz", "Œufs", "Petits pois", "Jambon", "Oignon"] },
+      { name: "Risotto aux champignons", ingredients: ["Riz arborio", "Champignons", "Bouillon de légumes", "Parmesan", "Oignon"] },
+      { name: "Curry de pois chiches", ingredients: ["Riz", "Pois chiches", "Lait de coco", "Curry", "Oignon"] },
+    ],
+  },
+  {
+    category: "Viandes",
+    dishes: [
+      { name: "Poulet rôti et pommes de terre", ingredients: ["Poulet", "Pommes de terre", "Beurre", "Thym"] },
+      { name: "Steak haché haricots verts", ingredients: ["Steak haché", "Haricots verts", "Beurre"] },
+      { name: "Escalope à la crème", ingredients: ["Escalope de dinde", "Crème fraîche", "Champignons", "Riz"] },
+    ],
+  },
+  {
+    category: "Poissons",
+    dishes: [
+      { name: "Saumon à la poêle", ingredients: ["Pavé de saumon", "Citron", "Beurre", "Riz"] },
+      { name: "Cabillaud au four", ingredients: ["Dos de cabillaud", "Tomates cerises", "Huile d'olive", "Herbes de Provence"] },
+      { name: "Papillote de colin", ingredients: ["Filet de colin", "Carottes", "Courgettes", "Citron"] },
+    ],
+  },
+  {
+    category: "Végétarien",
+    dishes: [
+      { name: "Omelette aux champignons", ingredients: ["Œufs", "Champignons", "Beurre", "Persil"] },
+      { name: "Quiche aux courgettes", ingredients: ["Pâte brisée", "Œufs", "Crème fraîche", "Courgettes", "Fromage râpé"] },
+      { name: "Soupe de légumes", ingredients: ["Carottes", "Poireaux", "Pommes de terre", "Oignon"] },
+    ],
+  },
+];
 
-  const dishCarbonara = { id: "dish-carbonara", categoryId: catPates.id, name: "Carbonara" };
-  const dishBolognaise = { id: "dish-bolognaise", categoryId: catPates.id, name: "Bolognaise" };
-  const dishRizPoulet = { id: "dish-riz-poulet", categoryId: catRiz.id, name: "Riz au poulet" };
+/** Identifiant stable et lisible, deduit du nom. */
+function slug(prefix: string, name: string, index: number): string {
+  const base = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${prefix}-${base}-${index}`;
+}
+
+export function createDefaultData(): AppData {
+  const categories: AppData["categories"] = [];
+  const dishes: AppData["dishes"] = [];
+  const ingredients: AppData["ingredients"] = [];
+
+  DEFAULT_PANTRY.forEach((entry, ci) => {
+    const categoryId = slug("cat", entry.category, ci);
+    categories.push({ id: categoryId, name: entry.category });
+
+    entry.dishes.forEach((dish, di) => {
+      const dishId = slug("dish", dish.name, ci * 100 + di);
+      dishes.push({ id: dishId, categoryId, name: dish.name });
+
+      dish.ingredients.forEach((name, ii) => {
+        ingredients.push({ id: slug("ing", name, ci * 10000 + di * 100 + ii), dishId, name });
+      });
+    });
+  });
 
   return {
-    categories: [catPates, catRiz],
-    dishes: [dishCarbonara, dishBolognaise, dishRizPoulet],
-    ingredients: [
-      { id: "ing-1", dishId: dishCarbonara.id, name: "Lardons" },
-      { id: "ing-2", dishId: dishCarbonara.id, name: "Crème" },
-      { id: "ing-3", dishId: dishCarbonara.id, name: "Fromage râpé" },
-      { id: "ing-4", dishId: dishCarbonara.id, name: "Tagliatelles" },
-      { id: "ing-5", dishId: dishBolognaise.id, name: "Viande hachée" },
-      { id: "ing-6", dishId: dishBolognaise.id, name: "Sauce tomate" },
-      { id: "ing-7", dishId: dishBolognaise.id, name: "Spaghetti" },
-      { id: "ing-8", dishId: dishRizPoulet.id, name: "Riz" },
-      { id: "ing-9", dishId: dishRizPoulet.id, name: "Poulet" },
-      { id: "ing-10", dishId: dishRizPoulet.id, name: "Crème" },
-    ],
+    categories,
+    dishes,
+    ingredients,
     weekPlan: createEmptyWeekPlan(),
     shoppingList: [],
     shoppingListGenerated: false,

@@ -15,6 +15,7 @@ import {
   fetchGroupInfo,
   fetchUserGroupId,
   joinGroup as joinGroupDoc,
+  leaveGroup as leaveGroupDoc,
 } from '@/utils/groups';
 
 type AuthContextType = {
@@ -35,6 +36,8 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<void>;
   createGroup: (name: string) => Promise<string>;
   joinGroup: (code: string) => Promise<string>;
+  /** Quitte le foyer courant sans en rejoindre d'autre. */
+  leaveGroup: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -134,21 +137,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
   }, []);
 
+  /**
+   * Sortie de l'ancien foyer lors d'un changement.
+   * Volontairement tolerante : le rattachement au nouveau foyer a deja
+   * abouti, et echouer ici laisserait l'utilisateur dans un etat incoherent.
+   * Au pire il reste liste dans l'ancien foyer, ce que la republication des
+   * regles de securite corrige.
+   */
+  const leavePrevious = useCallback(async (uid: string, previous: string | null, next: string) => {
+    if (!previous || previous === next) return;
+    try {
+      await leaveGroupDoc(uid, previous);
+    } catch {
+      // Sans effet visible : l'utilisateur voit deja son nouveau foyer.
+    }
+  }, []);
+
   const createGroup = useCallback(async (name: string) => {
     if (!user) throw new Error('Vous devez etre connecte.');
     const who = user.displayName?.trim() || 'Chef';
     const code = await createGroupDoc(user.uid, name, who);
+    await leavePrevious(user.uid, groupId, code);
     setGroupId(code);
     return code;
-  }, [user]);
+  }, [user, groupId, leavePrevious]);
 
   const joinGroup = useCallback(async (code: string) => {
     if (!user) throw new Error('Vous devez etre connecte.');
     const who = user.displayName?.trim() || 'Chef';
+    // On rejoint d'abord : un code errone ne doit pas laisser sans foyer.
     const joined = await joinGroupDoc(user.uid, code, who);
+    await leavePrevious(user.uid, groupId, joined);
     setGroupId(joined);
     return joined;
-  }, [user]);
+  }, [user, groupId, leavePrevious]);
+
+  const leaveGroup = useCallback(async () => {
+    if (!user || !groupId) return;
+    await leaveGroupDoc(user.uid, groupId);
+    setGroupId(null);
+  }, [user, groupId]);
 
   const refreshGroup = useCallback(() => {
     loadGroupInfo(groupId, user?.uid, user?.displayName?.trim() || undefined);
@@ -170,7 +198,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     createGroup,
     joinGroup,
-  }), [user, groupId, groupName, members, memberColors, refreshGroup, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup]);
+    leaveGroup,
+  }), [user, groupId, groupName, members, memberColors, refreshGroup, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup, leaveGroup]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
