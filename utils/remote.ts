@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { AppData } from '@/types';
 import { getDb } from './firebase';
 import { normalizeWeekPlan } from './storage';
@@ -59,7 +59,69 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
   } as SharedAppData) as SharedAppData;
 }
 
-/** Ecrit les donnees du foyer. Les trois documents partent en une seule fois. */
+type DocName = (typeof DOCS)[number];
+
+/** Traduit le contenu d'un document du foyer en fragment de donnees locales. */
+function toPartial(name: DocName, raw: Record<string, unknown>): Partial<SharedAppData> {
+  switch (name) {
+    case 'pantry':
+      return {
+        categories: (raw.categories ?? []) as SharedAppData['categories'],
+        dishes: (raw.dishes ?? []) as SharedAppData['dishes'],
+        ingredients: (raw.ingredients ?? []) as SharedAppData['ingredients'],
+      };
+    case 'planning': {
+      // Meme conversion que pour le cache local : un foyer alimente par une
+      // version anterieure peut encore stocker un seul repas par jour.
+      const { weekPlan } = normalizeWeekPlan({
+        weekPlan: (raw.weekPlan ?? {}) as AppData['weekPlan'],
+      } as AppData);
+      return { weekPlan };
+    }
+    case 'shopping':
+      return {
+        shoppingList: (raw.shoppingList ?? []) as SharedAppData['shoppingList'],
+        recurringExtras: (raw.recurringExtras ?? []) as string[],
+        shoppingListGenerated: Boolean(raw.shoppingListGenerated),
+      };
+    case 'calendar':
+      return { events: (raw.events ?? []) as SharedAppData['events'] };
+  }
+}
+
+/**
+ * Ecoute les donnees du foyer en continu : ce que l'autre telephone modifie
+ * arrive ici sans attendre la prochaine ouverture de l'application.
+ *
+ * Les echos de nos propres ecritures sont ignores (`hasPendingWrites`), sans
+ * quoi chaque envoi declencherait un aller-retour inutile.
+ *
+ * Renvoie la fonction de desabonnement.
+ */
+export function subscribeGroupData(
+  groupId: string,
+  onRemoteChange: (partial: Partial<SharedAppData>) => void,
+): () => void {
+  const db = getDb();
+
+  const unsubscribes = DOCS.map((name) =>
+    onSnapshot(
+      doc(db, 'groups', groupId, 'data', name),
+      (snap) => {
+        if (!snap.exists() || snap.metadata.hasPendingWrites) return;
+        onRemoteChange(toPartial(name, snap.data()));
+      },
+      () => {
+        // Perte de connexion : la banniere de synchronisation informe deja
+        // l'utilisateur, et Firestore reprendra l'ecoute tout seul.
+      },
+    ),
+  );
+
+  return () => unsubscribes.forEach((stop) => stop());
+}
+
+/** Ecrit les donnees du foyer. Les quatre documents partent en une seule fois. */
 export async function pushGroupData(groupId: string, data: SharedAppData): Promise<void> {
   const db = getDb();
   const parts = split(data);

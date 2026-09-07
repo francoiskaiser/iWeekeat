@@ -43,6 +43,16 @@ export interface ShoppingItem {
 
 export type Recurrence = "none" | "weekly" | "monthly" | "yearly";
 
+/** Message laisse sur un evenement par un membre du foyer. */
+export interface EventComment {
+  id: string;
+  /** Auteur ; traduit en prenom a l'affichage. */
+  uid: string;
+  text: string;
+  /** Date ISO complete. */
+  at: string;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -53,6 +63,8 @@ export interface CalendarEvent {
   startTime?: string;
   endTime?: string;
   note?: string;
+  /** Lieu libre : adresse, salle, ville... */
+  location?: string;
   /**
    * Identifiants des membres concernes. Vide = tout le foyer.
    * On stocke des uid et non "moi"/"elle" : la notion est relative a
@@ -65,6 +77,8 @@ export interface CalendarEvent {
   /** Minutes avant l'evenement pour le rappel local. null = aucun rappel. */
   reminderMinutes?: number | null;
   createdBy: string;
+  /** Fil de discussion attache a l'evenement. */
+  comments?: EventComment[];
 }
 
 export interface AppData {

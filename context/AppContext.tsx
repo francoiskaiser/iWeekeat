@@ -3,7 +3,7 @@ import { ActivityIndicator, AppState, View } from "react-native";
 import { AppData, CalendarEvent, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
 import { generateId, generateShoppingList } from "@/utils/helpers";
 import { loadAppData, loadPendingChanges, saveAppData, savePendingChanges } from "@/utils/storage";
-import { pullGroupData, pushGroupData } from "@/utils/remote";
+import { pullGroupData, pushGroupData, subscribeGroupData } from "@/utils/remote";
 import { getUpcomingDateKeys, isDateKeyUpcoming } from "@/utils/date";
 import { rescheduleReminders } from "@/utils/reminders";
 
@@ -49,6 +49,8 @@ interface AppContextValue {
   deleteEvent: (id: string) => void;
   /** Retire une seule occurrence d'une serie recurrente. */
   deleteOccurrence: (id: string, dateKey: string) => void;
+  addComment: (eventId: string, uid: string, text: string) => void;
+  deleteComment: (eventId: string, commentId: string) => void;
   syncing: boolean;
   syncError: string | null;
   syncNow: () => void;
@@ -67,6 +69,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Dernier etat connu des donnees, lisible depuis les callbacks asynchrones
   // sans les recreer a chaque frappe.
   const dataRef = useRef<ExtendedAppData | null>(null);
+  // Version synchrone du drapeau "modifications non envoyees" : l'ecoute temps
+  // reel doit pouvoir le consulter immediatement, sans attendre AsyncStorage.
+  const pendingRef = useRef(false);
   const [pushTick, setPushTick] = useState(0);
 
   useEffect(() => { dataRef.current = data; }, [data]);
@@ -86,6 +91,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (hasPending && local) {
         await pushGroupData(group, local);
         await savePendingChanges(group, false);
+        pendingRef.current = false;
       } else {
         const remote = await pullGroupData(group);
         if (remote) {
@@ -131,6 +137,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [groupId, reconcile]);
 
+  // Ecoute continue du foyer : ce que l'autre telephone modifie apparait ici
+  // dans la seconde, sans rouvrir l'application.
+  useEffect(() => {
+    if (!groupId) return;
+
+    return subscribeGroupData(groupId, (partial) => {
+      // Si ce telephone a des modifications pas encore envoyees, elles priment :
+      // notre propre envoi suit dans un instant et fera autorite. Appliquer le
+      // distant maintenant les effacerait.
+      if (pendingRef.current) return;
+
+      setData((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...partial };
+        dataRef.current = next;
+        saveAppData(next, groupId);
+        return next;
+      });
+      setSyncError(null);
+    });
+  }, [groupId]);
+
   // Envoi differe apres modification : evite une ecriture par frappe clavier.
   useEffect(() => {
     if (!groupId || pushTick === 0) return;
@@ -141,6 +169,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await pushGroupData(groupId, current);
         await savePendingChanges(groupId, false);
+        pendingRef.current = false;
         setSyncError(null);
       } catch {
         setSyncError('Modifications enregistrees sur ce telephone uniquement');
@@ -160,6 +189,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     if (groupId) {
+      pendingRef.current = true;
       savePendingChanges(groupId, true);
       setPushTick((t) => t + 1);
     }
@@ -443,6 +473,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [persist]);
 
+  const addComment = useCallback((eventId: string, uid: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    persist((prev) => ({
+      ...prev,
+      events: (prev.events ?? []).map((e) =>
+        e.id === eventId
+          ? {
+              ...e,
+              comments: [
+                ...(e.comments ?? []),
+                { id: generateId('cmt'), uid, text: trimmed, at: new Date().toISOString() },
+              ],
+            }
+          : e,
+      ),
+    }));
+  }, [persist]);
+
+  const deleteComment = useCallback((eventId: string, commentId: string) => {
+    persist((prev) => ({
+      ...prev,
+      events: (prev.events ?? []).map((e) =>
+        e.id === eventId
+          ? { ...e, comments: (e.comments ?? []).filter((c) => c.id !== commentId) }
+          : e,
+      ),
+    }));
+  }, [persist]);
+
   const deleteOccurrence = useCallback((id: string, dateKey: string) => {
     persist((prev) => ({
       ...prev,
@@ -460,14 +520,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
       addIngredient, updateIngredient, deleteIngredient, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
       removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
-      addEvent, updateEvent, deleteEvent, deleteOccurrence,
+      addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment,
       syncing, syncError, syncNow,
     };
   }, [
     data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
     addIngredient, updateIngredient, deleteIngredient, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
-    addEvent, updateEvent, deleteEvent, deleteOccurrence,
+    addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment,
     syncing, syncError, syncNow,
   ]);
 

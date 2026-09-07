@@ -11,7 +11,7 @@ import {
 import { getFirebaseAuth, isFirebaseConfigured } from '@/utils/firebase';
 import {
   createGroup as createGroupDoc,
-  ensureMemberName,
+  ensureMemberProfile,
   fetchGroupInfo,
   fetchUserGroupId,
   joinGroup as joinGroupDoc,
@@ -25,6 +25,8 @@ type AuthContextType = {
   groupName: string | null;
   /** uid -> prenom des membres du foyer. */
   members: Record<string, string>;
+  /** uid -> couleur attribuee au membre. */
+  memberColors: Record<string, string>;
   refreshGroup: () => void;
   initialized: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
@@ -65,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
   const [members, setMembers] = useState<Record<string, string>>({});
+  const [memberColors, setMemberColors] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(!isFirebaseConfigured);
 
   // Nom du foyer et prenoms des membres, necessaires pour afficher qui est
@@ -73,15 +76,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!group) {
       setGroupName(null);
       setMembers({});
+      setMemberColors({});
       return;
     }
     try {
       // Inscrit ou corrige son propre prenom avant lecture, sinon les foyers
       // crees avant cette fonctionnalite afficheraient "Membre du foyer".
-      if (uid && who) await ensureMemberName(group, uid, who);
+      if (uid && who) await ensureMemberProfile(group, uid, who);
       const info = await fetchGroupInfo(group);
       setGroupName(info?.name ?? null);
       setMembers(info?.members ?? {});
+      setMemberColors(info?.colors ?? {});
     } catch {
       // Hors ligne : on garde ce qu'on avait deja.
     }
@@ -156,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     groupId,
     groupName,
     members,
+    memberColors,
     refreshGroup,
     initialized,
     signUp,
@@ -164,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     createGroup,
     joinGroup,
-  }), [user, groupId, groupName, members, refreshGroup, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup]);
+  }), [user, groupId, groupName, members, memberColors, refreshGroup, initialized, signUp, signIn, signOut, resetPassword, createGroup, joinGroup]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

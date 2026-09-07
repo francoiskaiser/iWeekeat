@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View,
   KeyboardAvoidingView, Platform,
@@ -32,15 +32,19 @@ interface Props {
   /** Evenement en cours de modification, ou null pour une creation. */
   event: CalendarEvent | null;
   members: Record<string, string>;
+  memberColors: Record<string, string>;
   currentUid: string;
   onClose: () => void;
   onSave: (values: Omit<CalendarEvent, 'id'>) => void;
   onDelete: () => void;
   onDeleteOccurrence: () => void;
+  onAddComment: (text: string) => void;
+  onDeleteComment: (commentId: string) => void;
 }
 
 export function EventEditor({
-  visible, dateKey, event, members, currentUid, onClose, onSave, onDelete, onDeleteOccurrence,
+  visible, dateKey, event, members, memberColors, currentUid,
+  onClose, onSave, onDelete, onDeleteOccurrence, onAddComment, onDeleteComment,
 }: Props) {
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
   const inputBg = isDarkMode ? '#0f172a' : '#fff';
@@ -49,20 +53,32 @@ export function EventEditor({
   const [allDay, setAllDay] = useState(true);
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [location, setLocation] = useState('');
   const [note, setNote] = useState('');
+  const [draftComment, setDraftComment] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [recurrence, setRecurrence] = useState<Recurrence>('none');
   const [reminder, setReminder] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Reinitialise le formulaire a chaque ouverture.
+  // L'evenement est relu en continu depuis les donnees du foyer : sans cette
+  // reference, le moindre commentaire recu reinitialiserait le formulaire et
+  // effacerait une saisie en cours.
+  const eventRef = useRef(event);
+  eventRef.current = event;
+  const eventId = event?.id ?? null;
+
+  // Reinitialise le formulaire a l'ouverture, ou en changeant d'evenement.
   useEffect(() => {
     if (!visible) return;
+    const event = eventRef.current;
     setTitle(event?.title ?? '');
     setAllDay(event ? event.allDay : true);
     setStart(event?.startTime ?? '');
     setEnd(event?.endTime ?? '');
+    setLocation(event?.location ?? '');
     setNote(event?.note ?? '');
+    setDraftComment('');
     setAssignedTo(event?.assignedTo ?? []);
     setRecurrence(event?.recurrence ?? 'none');
     setReminder(
@@ -71,7 +87,7 @@ export function EventEditor({
         : String(event.reminderMinutes),
     );
     setError(null);
-  }, [visible, event]);
+  }, [visible, eventId]);
 
   const toggleMember = (uid: string) => {
     setAssignedTo((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
@@ -113,12 +129,16 @@ export function EventEditor({
       allDay,
       ...(startTime ? { startTime } : {}),
       ...(endTime ? { endTime } : {}),
+      ...(location.trim() ? { location: location.trim() } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       assignedTo,
       recurrence,
       ...(event?.excludedDates ? { excludedDates: event.excludedDates } : {}),
       reminderMinutes: reminder === '' ? null : Number(reminder),
       createdBy: event?.createdBy ?? currentUid,
+      // Le fil de discussion vit en dehors du formulaire : on le reconduit tel
+      // quel pour ne pas l'effacer en enregistrant une modification.
+      ...(event?.comments ? { comments: event.comments } : {}),
     });
   };
 
@@ -177,6 +197,18 @@ export function EventEditor({
               </View>
             )}
 
+            <Text style={[styles.label, { color: text }]}>Lieu (optionnel)</Text>
+            <View style={[styles.inputRow, { backgroundColor: inputBg, borderColor: border }]}>
+              <Ionicons name="location-outline" size={19} color="#94a3b8" />
+              <TextInput
+                style={[styles.inputRowText, { color: text }]}
+                placeholder="Ex : Cabinet du Dr Martin, Nancy"
+                placeholderTextColor="#94a3b8"
+                value={location}
+                onChangeText={setLocation}
+              />
+            </View>
+
             <Text style={[styles.label, { color: text }]}>Concerne</Text>
             <View style={styles.chips}>
               <TouchableOpacity
@@ -193,9 +225,13 @@ export function EventEditor({
                 return (
                   <TouchableOpacity
                     key={uid}
-                    style={[styles.chip, { borderColor: border, backgroundColor: card }, active && styles.chipActive]}
+                    style={[
+                      styles.chip, styles.chipWithDot, { borderColor: border, backgroundColor: card },
+                      active && { backgroundColor: memberColors[uid] ?? '#FF7A41', borderColor: memberColors[uid] ?? '#FF7A41' },
+                    ]}
                     onPress={() => toggleMember(uid)}
                   >
+                    <View style={[styles.chipDot, { backgroundColor: active ? '#fff' : (memberColors[uid] ?? '#94a3b8') }]} />
                     <Text style={[styles.chipText, { color: active ? '#fff' : subText }]}>
                       {uid === currentUid ? `${name} (moi)` : name}
                     </Text>
@@ -243,6 +279,67 @@ export function EventEditor({
             </TouchableOpacity>
 
             {event && (
+              <View style={styles.commentsBlock}>
+                <Text style={[styles.label, { color: text }]}>Discussion</Text>
+
+                {(event.comments ?? []).length === 0 ? (
+                  <Text style={[styles.noComments, { color: subText }]}>
+                    Aucun message. Utilisez ce fil pour vous mettre d&apos;accord sur cet evenement.
+                  </Text>
+                ) : (
+                  (event.comments ?? []).map((comment) => {
+                    const mine = comment.uid === currentUid;
+                    const author = mine ? 'Moi' : (members[comment.uid] ?? 'Membre');
+                    const color = memberColors[comment.uid] ?? '#94a3b8';
+                    return (
+                      <View key={comment.id} style={[styles.comment, { backgroundColor: card, borderColor: border }]}>
+                        <View style={[styles.commentBar, { backgroundColor: color }]} />
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.commentHead}>
+                            <Text style={[styles.commentAuthor, { color }]}>{author}</Text>
+                            <Text style={[styles.commentDate, { color: subText }]}>
+                              {new Date(comment.at).toLocaleDateString('fr-FR', {
+                                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                              })}
+                            </Text>
+                          </View>
+                          <Text style={[styles.commentText, { color: text }]}>{comment.text}</Text>
+                        </View>
+                        {mine && (
+                          <TouchableOpacity
+                            onPress={() => onDeleteComment(comment.id)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <Ionicons name="close" size={16} color="#cbd5e1" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
+
+                <View style={[styles.inputRow, { backgroundColor: inputBg, borderColor: border }]}>
+                  <TextInput
+                    style={[styles.inputRowText, { color: text }]}
+                    placeholder="Ecrire un message..."
+                    placeholderTextColor="#94a3b8"
+                    value={draftComment}
+                    onChangeText={setDraftComment}
+                    onSubmitEditing={() => { onAddComment(draftComment); setDraftComment(''); }}
+                    returnKeyType="send"
+                  />
+                  <TouchableOpacity
+                    style={[styles.sendBtn, !draftComment.trim() && { opacity: 0.4 }]}
+                    disabled={!draftComment.trim()}
+                    onPress={() => { onAddComment(draftComment); setDraftComment(''); }}
+                  >
+                    <Ionicons name="send" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {event && (
               <>
                 {isRecurring && (
                   <TouchableOpacity style={styles.deleteGhost} onPress={onDeleteOccurrence}>
@@ -280,8 +377,23 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, marginTop: 18 },
   switchLabel: { fontSize: 15, fontWeight: '700' },
 
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, height: 52 },
+  inputRowText: { flex: 1, fontSize: 16 },
+
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1 },
+  chipWithDot: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  chipDot: { width: 9, height: 9, borderRadius: 5 },
+
+  commentsBlock: { marginTop: 6 },
+  noComments: { fontSize: 13, lineHeight: 19, marginBottom: 12, marginHorizontal: 4 },
+  comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },
+  commentBar: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
+  commentHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
+  commentAuthor: { fontSize: 13, fontWeight: '800' },
+  commentDate: { fontSize: 11, fontWeight: '600' },
+  commentText: { fontSize: 14, lineHeight: 19 },
+  sendBtn: { backgroundColor: '#FF7A41', width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   chipActive: { backgroundColor: '#FF7A41', borderColor: '#FF7A41' },
   chipText: { fontSize: 14, fontWeight: '700' },
 

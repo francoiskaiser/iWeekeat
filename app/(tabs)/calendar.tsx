@@ -10,16 +10,17 @@ import { CalendarEvent } from '@/types';
 import { toDateKey } from '@/utils/date';
 import { requestReminderPermission } from '@/utils/reminders';
 import {
-  WEEKDAY_INITIALS, buildMonthMatrix, eventsOnDate, formatEventTime, monthLabel, parseDateKey,
+  WEEKDAY_INITIALS, buildMonthMatrix, concerns, eventsOnDate, formatEventTime, monthLabel, parseDateKey,
 } from '@/utils/calendar';
+import { HOUSEHOLD_COLOR } from '@/utils/groups';
 
 /** Nombre de libelles affichables dans une case du mois avant resume. */
 const MAX_CHIPS_PER_DAY = 2;
 
 export default function CalendarScreen() {
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
-  const { data, addEvent, updateEvent, deleteEvent, deleteOccurrence } = useApp();
-  const { members, user } = useAuth();
+  const { data, addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment } = useApp();
+  const { members, memberColors, user } = useAuth();
 
   const today = useMemo(() => new Date(), []);
   const todayKey = toDateKey(today);
@@ -27,10 +28,32 @@ export default function CalendarScreen() {
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [selected, setSelected] = useState(todayKey);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editing, setEditing] = useState<CalendarEvent | null>(null);
+  // On ne memorise que l'identifiant : l'evenement lui-meme est relu dans les
+  // donnees a chaque rendu, sinon un commentaire ajoute n'apparaitrait qu'a la
+  // reouverture de la fiche.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [permissionRefused, setPermissionRefused] = useState(false);
+  // null = tout le foyer ; sinon on ne montre que ce qui concerne ce membre.
+  const [filterUid, setFilterUid] = useState<string | null>(null);
 
-  const events = useMemo(() => data.events ?? [], [data.events]);
+  const allEvents = useMemo(() => data.events ?? [], [data.events]);
+  // Un evenement de tout le foyer concerne aussi la personne filtree.
+  const events = useMemo(
+    () => (filterUid ? allEvents.filter((e) => concerns(e, filterUid)) : allEvents),
+    [allEvents, filterUid],
+  );
+
+  const editing = useMemo(
+    () => allEvents.find((e) => e.id === editingId) ?? null,
+    [allEvents, editingId],
+  );
+
+  /** Couleur d'un evenement : celle du membre concerne, ou celle du foyer. */
+  const colorOf = (event: CalendarEvent): string => {
+    const [first, ...rest] = event.assignedTo ?? [];
+    if (!first || rest.length) return HOUSEHOLD_COLOR;
+    return memberColors[first] ?? HOUSEHOLD_COLOR;
+  };
   const weeks = useMemo(() => buildMonthMatrix(cursor.year, cursor.month), [cursor]);
   const dayEvents = useMemo(() => eventsOnDate(events, selected), [events, selected]);
 
@@ -61,8 +84,8 @@ export default function CalendarScreen() {
     setSelected(todayKey);
   };
 
-  const openNew = () => { setEditing(null); setEditorOpen(true); };
-  const openExisting = (event: CalendarEvent) => { setEditing(event); setEditorOpen(true); };
+  const openNew = () => { setEditingId(null); setEditorOpen(true); };
+  const openExisting = (event: CalendarEvent) => { setEditingId(event.id); setEditorOpen(true); };
 
   const handleSave = (values: Omit<CalendarEvent, 'id'>) => {
     if (editing) updateEvent(editing.id, values);
@@ -111,6 +134,38 @@ export default function CalendarScreen() {
               mais aucun rappel ne s&apos;affichera. Autorisez-les dans les reglages
               du telephone.
             </Text>
+          </View>
+        )}
+
+        {/* FILTRE PAR PERSONNE */}
+        {Object.keys(members).length > 1 && (
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[styles.filterChip, { borderColor: border, backgroundColor: card },
+                filterUid === null && { backgroundColor: HOUSEHOLD_COLOR, borderColor: HOUSEHOLD_COLOR }]}
+              onPress={() => setFilterUid(null)}
+            >
+              <Text style={[styles.filterText, { color: filterUid === null ? '#fff' : subText }]}>
+                Tout le foyer
+              </Text>
+            </TouchableOpacity>
+            {Object.entries(members).map(([uid, name]) => {
+              const active = filterUid === uid;
+              const c = memberColors[uid] ?? HOUSEHOLD_COLOR;
+              return (
+                <TouchableOpacity
+                  key={uid}
+                  style={[styles.filterChip, styles.filterChipDotted, { borderColor: border, backgroundColor: card },
+                    active && { backgroundColor: c, borderColor: c }]}
+                  onPress={() => setFilterUid(active ? null : uid)}
+                >
+                  <View style={[styles.filterDot, { backgroundColor: active ? '#fff' : c }]} />
+                  <Text style={[styles.filterText, { color: active ? '#fff' : subText }]}>
+                    {uid === user?.uid ? 'Moi' : name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -171,13 +226,16 @@ export default function CalendarScreen() {
                       </Text>
                     </View>
                     <View style={styles.chips}>
-                      {chips.map((event, i) => (
-                        <View key={key + '-e-' + i} style={styles.chipEvent}>
-                          <Text style={styles.chipEventText} numberOfLines={1}>
-                            {event.title}
-                          </Text>
-                        </View>
-                      ))}
+                      {chips.map((event, i) => {
+                        const c = colorOf(event);
+                        return (
+                          <View key={key + '-e-' + i} style={[styles.chipEvent, { backgroundColor: c + '22' }]}>
+                            <Text style={[styles.chipEventText, { color: c }]} numberOfLines={1}>
+                              {event.title}
+                            </Text>
+                          </View>
+                        );
+                      })}
                       {showMeal && (
                         <View style={styles.chipMeal}>
                           <Text style={styles.chipMealText} numberOfLines={1}>
@@ -198,8 +256,8 @@ export default function CalendarScreen() {
 
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, { backgroundColor: '#0EA5E915', borderColor: '#0EA5E9' }]} />
-            <Text style={[styles.legendText, { color: subText }]}>Evenement</Text>
+            <View style={[styles.legendSwatch, { backgroundColor: HOUSEHOLD_COLOR + '22', borderColor: HOUSEHOLD_COLOR }]} />
+            <Text style={[styles.legendText, { color: subText }]}>Tout le foyer</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: '#10B98115', borderColor: '#10B981' }]} />
@@ -233,8 +291,8 @@ export default function CalendarScreen() {
                 onPress={() => openExisting(event)}
                 activeOpacity={0.7}
               >
-                <View style={styles.eventTime}>
-                  <Text style={styles.eventTimeText}>
+                <View style={[styles.eventTime, { backgroundColor: colorOf(event) + '22' }]}>
+                  <Text style={[styles.eventTimeText, { color: colorOf(event) }]}>
                     {event.allDay || !event.startTime ? 'Jour' : event.startTime}
                   </Text>
                 </View>
@@ -245,9 +303,23 @@ export default function CalendarScreen() {
                     {who ? ` · ${who}` : ''}
                     {event.recurrence !== 'none' ? ' · repete' : ''}
                   </Text>
+                  {event.location ? (
+                    <View style={styles.eventLocation}>
+                      <Ionicons name="location-outline" size={12} color={subText} />
+                      <Text style={[styles.eventNote, { color: subText }]} numberOfLines={1}>{event.location}</Text>
+                    </View>
+                  ) : null}
                   {event.note ? (
                     <Text style={[styles.eventNote, { color: subText }]} numberOfLines={2}>{event.note}</Text>
                   ) : null}
+                  {(event.comments ?? []).length > 0 && (
+                    <View style={styles.eventLocation}>
+                      <Ionicons name="chatbubble-outline" size={12} color={subText} />
+                      <Text style={[styles.eventNote, { color: subText }]}>
+                        {(event.comments ?? []).length} message(s)
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
@@ -266,11 +338,14 @@ export default function CalendarScreen() {
         dateKey={editing?.date ?? selected}
         event={editing}
         members={members}
+        memberColors={memberColors}
         currentUid={user?.uid ?? ''}
         onClose={() => setEditorOpen(false)}
         onSave={handleSave}
         onDelete={() => { if (editing) deleteEvent(editing.id); setEditorOpen(false); }}
         onDeleteOccurrence={() => { if (editing) deleteOccurrence(editing.id, selected); setEditorOpen(false); }}
+        onAddComment={(txt) => { if (editing && user) addComment(editing.id, user.uid, txt); }}
+        onDeleteComment={(commentId) => { if (editing) deleteComment(editing.id, commentId); }}
       />
     </SafeAreaView>
   );
@@ -287,6 +362,12 @@ const styles = StyleSheet.create({
 
   warnBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
   warnText: { flex: 1, color: '#b45309', fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, borderWidth: 1 },
+  filterChipDotted: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  filterDot: { width: 8, height: 8, borderRadius: 4 },
+  filterText: { fontSize: 13, fontWeight: '800' },
+
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 10, marginBottom: 12 },
   navBtn: { padding: 6 },
   monthLabel: { fontSize: 17, fontWeight: '800' },
@@ -304,8 +385,8 @@ const styles = StyleSheet.create({
   dayNumSelected: { color: '#fff', fontWeight: '900' },
 
   chips: { width: '100%', paddingHorizontal: 1, gap: 2, marginTop: 2 },
-  chipEvent: { backgroundColor: '#0EA5E915', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
-  chipEventText: { color: '#0EA5E9', fontSize: 9, fontWeight: '800' },
+  chipEvent: { borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
+  chipEventText: { fontSize: 9, fontWeight: '800' },
   chipMeal: { backgroundColor: '#10B98115', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
   chipMealText: { color: '#10B981', fontSize: 9, fontWeight: '800' },
   chipMore: { fontSize: 9, fontWeight: '800', textAlign: 'center' },
@@ -325,8 +406,9 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, fontWeight: '600' },
 
   eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 10 },
-  eventTime: { backgroundColor: '#0EA5E915', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6, minWidth: 52, alignItems: 'center' },
-  eventTimeText: { color: '#0EA5E9', fontSize: 13, fontWeight: '800' },
+  eventTime: { borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6, minWidth: 52, alignItems: 'center' },
+  eventTimeText: { fontSize: 13, fontWeight: '800' },
+  eventLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   eventTitle: { fontSize: 16, fontWeight: '800' },
   eventMeta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   eventNote: { fontSize: 12, marginTop: 4, lineHeight: 17 },
