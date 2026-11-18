@@ -1,4 +1,4 @@
-# MealHelper
+# iWeekeat
 
 Application mobile React Native / Expo pour planifier vos repas de la semaine et générer une liste de courses optimisée.
 
@@ -40,7 +40,7 @@ npm run web
 ## Structure du projet
 
 ```
-MealHelper/
+iWeekeat/
 ├── app/                    # Expo Router — écrans
 │   ├── _layout.tsx         # Layout racine + providers (Auth, Theme)
 │   ├── login.tsx           # Connexion / inscription

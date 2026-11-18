@@ -17,3 +17,6 @@ web-build/
 
 expo-env.d.ts
 # @end expo-cli
+
+# Reglages locaux de Claude
+.claude/settings.local.json

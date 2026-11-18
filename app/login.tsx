@@ -75,7 +75,7 @@ export default function LoginScreen() {
             <View style={styles.iconWrapper}>
               <Ionicons name="restaurant" size={50} color="#fff" />
             </View>
-            <Text style={[styles.title, { color: text }]}>MealHelper</Text>
+            <Text style={[styles.title, { color: text }]}>iWeekeat</Text>
             <Text style={[styles.subtitle, { color: subText }]}>Votre cuisine, votre organisation.</Text>
           </View>
 

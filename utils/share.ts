@@ -25,7 +25,7 @@ export function buildWeekMenuText(weekDays: ShareWeekDay[], data: ShareData): st
       .filter((n): n is string => Boolean(n));
     lines.push(`${label} : ${names.length ? names.join(" + ") : "—"}`);
   }
-  lines.push("", "_Envoyé depuis MealHelper_");
+  lines.push("", "_Envoyé depuis iWeekeat_");
   return lines.join("\n");
 }
 
@@ -47,7 +47,7 @@ export function buildShoppingListText(data: ShareData): string {
   if (food.length === 0 && extras.length === 0) {
     lines.push("(liste vide — génère-la d'abord depuis tes repas)", "");
   }
-  lines.push("_Envoyé depuis MealHelper_");
+  lines.push("_Envoyé depuis iWeekeat_");
   return lines.join("\n");
 }
 

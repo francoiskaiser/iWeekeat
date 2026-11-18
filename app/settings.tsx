@@ -18,7 +18,7 @@ export default function SettingsScreen() {
   const shareCode = () => {
     if (!groupId) return;
     Share.share({
-      message: `Rejoins notre foyer sur MealHelper avec le code ${groupId} !`,
+      message: `Rejoins notre foyer sur iWeekeat avec le code ${groupId} !`,
     }).catch(() => { /* partage annule */ });
   };
 

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "MealHelper",
+    "name": "iWeekeat",
     "slug": "mealhelper",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "mealhelper",
+    "scheme": "iweekeat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mealhelper.app"
+      "bundleIdentifier": "com.iweekeat.app"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -23,7 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF7A41"
       },
-      "package": "com.mealhelper.app"
+      "package": "com.iweekeat.app"
     },
     "plugins": [
       "expo-router",

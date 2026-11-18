@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Regles de securite Firestore pour MealHelper.
+// Regles de securite Firestore pour iWeekeat.
 //
 // Modele :
 //   users/{uid}                        -> { groupId }         profil prive
