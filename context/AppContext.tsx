@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, View } from "react-native";
-import { AppData, CalendarEvent, Category, DayPlan, Dish, Ingredient, ShoppingItem } from "@/types";
+import { AppData, CalendarEvent, Category, DayPlan, Dish, Ingredient, Recipe, ShoppingItem } from "@/types";
+import { findPantryCategory, categoryLabel } from "@/utils/recipeCategories";
 import { generateId, generateShoppingList } from "@/utils/helpers";
 import { loadAppData, loadPendingChanges, saveAppData, savePendingChanges } from "@/utils/storage";
 import { pullGroupData, pushGroupData, subscribeGroupData } from "@/utils/remote";
@@ -29,6 +30,12 @@ interface AppContextValue {
   addIngredient: (dishId: string, name: string) => void;
   updateIngredient: (id: string, name: string) => void;
   deleteIngredient: (id: string) => void;
+  /**
+   * Copie une recette du catalogue dans le garde-manger du foyer : le plat
+   * devient utilisable dans le semainier et la liste de courses.
+   * Renvoie l'identifiant du plat (existant si la recette etait deja ajoutee).
+   */
+  addRecipeToPantry: (recipe: Recipe) => { dishId: string; alreadyThere: boolean };
   /** Ajoute un repas au jour, ou le remplace si un index est fourni. */
   addDayPlan: (dateKey: string, plan: DayPlan, replaceIndex?: number) => void;
   /** Retire un repas precis du jour. */
@@ -285,6 +292,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist((prev) => ({ ...prev, ingredients: prev.ingredients.filter((i) => i.id !== id) }));
   }, [persist]);
 
+  const addRecipeToPantry = useCallback((recipe: Recipe) => {
+    const existing = dataRef.current?.dishes.find((d) => d.recipeId === recipe.id);
+    if (existing) return { dishId: existing.id, alreadyThere: true };
+
+    const dishId = generateId("dish");
+    persist((prev) => {
+      if (prev.dishes.some((d) => d.recipeId === recipe.id)) return prev;
+
+      // On range le plat dans la categorie du foyer qui correspond ("Viandes"
+      // pour une recette "Viande"), ou on la cree si le foyer n'en a pas.
+      let categories = prev.categories;
+      let categoryId = findPantryCategory(prev.categories, recipe.category)?.id;
+      if (!categoryId) {
+        categoryId = generateId("cat");
+        categories = [...categories, { id: categoryId, name: categoryLabel(recipe.category) }];
+      }
+
+      return {
+        ...prev,
+        categories,
+        dishes: [...prev.dishes, { id: dishId, categoryId, name: recipe.title, recipeId: recipe.id }],
+        ingredients: [
+          ...prev.ingredients,
+          ...recipe.ingredients.map((i) => ({ id: generateId("ing"), dishId, name: i.name })),
+        ],
+      };
+    });
+    return { dishId, alreadyThere: false };
+  }, [persist]);
+
   const writeDay = useCallback((dateKey: string, next: DayPlan[]) => {
     persist((prev) => {
       const weekPlan = { ...prev.weekPlan };
@@ -518,14 +555,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!data) return null;
     return {
       data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
-      addIngredient, updateIngredient, deleteIngredient, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
+      addIngredient, updateIngredient, deleteIngredient, addRecipeToPantry, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
       removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
       addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment,
       syncing, syncError, syncNow,
     };
   }, [
     data, loading, addCategory, updateCategory, deleteCategory, addDish, updateDish, deleteDish,
-    addIngredient, updateIngredient, deleteIngredient, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
+    addIngredient, updateIngredient, deleteIngredient, addRecipeToPantry, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
     addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment,
     syncing, syncError, syncNow,

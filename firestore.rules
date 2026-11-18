@@ -7,6 +7,10 @@ rules_version = '2';
 //   groups/{groupId}                   -> { name, createdBy, createdAt, memberUids[] }
 //   groups/{groupId}/data/{docId}      -> donnees partagees du foyer
 //                                         (pantry | planning | shopping)
+//   recipes/{recipeId}                 -> recette publiee par un utilisateur
+//   recipes/{recipeId}/reports/{uid}   -> un signalement par personne
+//   recipeStats/{recipeId}             -> { count, sum } notes cumulees
+//   recipeStats/{recipeId}/ratings/{uid} -> { stars } la note de chacun
 //
 // L'identifiant du groupe EST le code de partage (ex. "K7M2QP") : rejoindre un
 // foyer revient donc a connaitre son code.
@@ -26,9 +30,185 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberUids;
     }
 
-    // Chacun ne lit et n'ecrit que son propre profil.
+    // Chacun ne lit et n'ecrit que son propre profil (foyer, auteurs
+    // bloques, acceptation de la charte de la communaute).
     match /users/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // Recettes de la communaute
+    // ---------------------------------------------------------------------
+
+    // Seuil de signalements au-dela duquel une recette est masquee.
+    // A garder egal a REPORT_THRESHOLD dans utils/recipes.ts.
+    function reportThreshold() {
+      return 3;
+    }
+
+    function acceptedCommunityRules() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid))
+        .data.get('communityRulesAcceptedAt', null) != null;
+    }
+
+    function isValidRecipeContent(d) {
+      return d.title is string && d.title.size() >= 2 && d.title.size() <= 80
+        && d.category in ['classiques', 'pates', 'viande', 'poisson', 'vegetarien', 'soupes', 'riz-cereales', 'rapides']
+        && d.servings is int && d.servings >= 1 && d.servings <= 20
+        && d.minutes is int && d.minutes >= 1 && d.minutes <= 720
+        && d.ingredients is list && d.ingredients.size() >= 1 && d.ingredients.size() <= 40
+        && d.steps is list && d.steps.size() >= 1 && d.steps.size() <= 20
+        && d.authorName is string && d.authorName.size() >= 1 && d.authorName.size() <= 40;
+    }
+
+    match /recipes/{recipeId} {
+      // Une recette masquee reste visible de son auteur, pour qu'il sache
+      // pourquoi elle a disparu du catalogue.
+      allow read: if isSignedIn()
+        && (resource.data.hidden == false || resource.data.authorUid == request.auth.uid);
+
+      // Publier suppose d'avoir accepte la charte (exigence Google Play pour
+      // le contenu cree par les utilisateurs).
+      allow create: if isSignedIn()
+        && acceptedCommunityRules()
+        && request.resource.data.keys().hasOnly(['title', 'category', 'servings', 'minutes', 'ingredients',
+             'steps', 'authorUid', 'authorName', 'createdAt', 'hidden', 'reportCount'])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.hidden == false
+        && request.resource.data.reportCount == 0
+        && isValidRecipeContent(request.resource.data);
+
+      allow update: if isSignedIn() && (
+        // L'auteur modifie le contenu, jamais les compteurs de moderation.
+        (
+          request.auth.uid == resource.data.authorUid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['title', 'category', 'servings', 'minutes', 'ingredients', 'steps', 'authorName'])
+          && isValidRecipeContent(request.resource.data)
+        )
+        ||
+        // Un autre utilisateur signale : +1 exactement, accompagne de son
+        // propre document de signalement cree dans la meme ecriture.
+        (
+          request.auth.uid != resource.data.authorUid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reportCount', 'hidden'])
+          && request.resource.data.reportCount == resource.data.reportCount + 1
+          && request.resource.data.hidden
+               == (resource.data.hidden || request.resource.data.reportCount >= reportThreshold())
+          && !exists(/databases/$(database)/documents/recipes/$(recipeId)/reports/$(request.auth.uid))
+          && existsAfter(/databases/$(database)/documents/recipes/$(recipeId)/reports/$(request.auth.uid))
+        )
+      );
+
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.authorUid;
+
+      // Les signalements ne se lisent que depuis la console Firebase.
+      match /reports/{uid} {
+        allow read: if false;
+        allow create: if isSignedIn()
+          && uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['reason', 'at'])
+          && request.resource.data.reason is string
+          && request.resource.data.reason.size() <= 200
+          && request.resource.data.at == request.time
+          && get(/databases/$(database)/documents/recipes/$(recipeId)).data.authorUid != request.auth.uid
+          && getAfter(/databases/$(database)/documents/recipes/$(recipeId)).data.reportCount
+               == get(/databases/$(database)/documents/recipes/$(recipeId)).data.reportCount + 1;
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // Notes (1 a 5 etoiles)
+    // ---------------------------------------------------------------------
+    // La note de chacun et le compteur de la recette doivent changer dans la
+    // meme ecriture et de facon coherente : impossible de voter deux fois ou
+    // de modifier le compteur a la main.
+
+    function statsPath(recipeId) {
+      return /databases/$(database)/documents/recipeStats/$(recipeId);
+    }
+
+    function myRatingPath(recipeId) {
+      return /databases/$(database)/documents/recipeStats/$(recipeId)/ratings/$(request.auth.uid);
+    }
+
+    // Recette par defaut (identifiant "def-...") ou recette publiee existante.
+    function isKnownRecipe(recipeId) {
+      return recipeId.matches('def-[a-z0-9-]+')
+        || exists(/databases/$(database)/documents/recipes/$(recipeId));
+    }
+
+    function isValidStars(value) {
+      return value is int && value >= 1 && value <= 5;
+    }
+
+    // On ne note pas sa propre recette.
+    function isNotOwnRecipe(recipeId) {
+      return !exists(/databases/$(database)/documents/recipes/$(recipeId))
+        || get(/databases/$(database)/documents/recipes/$(recipeId)).data.authorUid != request.auth.uid;
+    }
+
+    match /recipeStats/{recipeId} {
+      allow read: if isSignedIn();
+
+      // Premier vote de la recette.
+      allow create: if isSignedIn()
+        && isKnownRecipe(recipeId)
+        && request.resource.data.keys().hasOnly(['count', 'sum'])
+        && !exists(myRatingPath(recipeId))
+        && existsAfter(myRatingPath(recipeId))
+        && request.resource.data.count == 1
+        && request.resource.data.sum == getAfter(myRatingPath(recipeId)).data.stars;
+
+      allow update: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['count', 'sum'])
+        && existsAfter(myRatingPath(recipeId))
+        && (
+          // Nouveau votant.
+          (
+            !exists(myRatingPath(recipeId))
+            && request.resource.data.count == resource.data.count + 1
+            && request.resource.data.sum == resource.data.sum + getAfter(myRatingPath(recipeId)).data.stars
+          )
+          ||
+          // Changement d'avis : le nombre de votants ne bouge pas.
+          (
+            exists(myRatingPath(recipeId))
+            && request.resource.data.count == resource.data.count
+            && request.resource.data.sum == resource.data.sum
+                 - get(myRatingPath(recipeId)).data.stars
+                 + getAfter(myRatingPath(recipeId)).data.stars
+          )
+        );
+
+      allow delete: if false;
+
+      match /ratings/{uid} {
+        allow read: if isSignedIn() && uid == request.auth.uid;
+
+        allow create: if isSignedIn()
+          && uid == request.auth.uid
+          && isNotOwnRecipe(recipeId)
+          && request.resource.data.keys().hasOnly(['stars'])
+          && isValidStars(request.resource.data.stars)
+          && getAfter(statsPath(recipeId)).data.count
+               == (exists(statsPath(recipeId)) ? get(statsPath(recipeId)).data.count : 0) + 1
+          && getAfter(statsPath(recipeId)).data.sum
+               == (exists(statsPath(recipeId)) ? get(statsPath(recipeId)).data.sum : 0) + request.resource.data.stars;
+
+        allow update: if isSignedIn()
+          && uid == request.auth.uid
+          && isNotOwnRecipe(recipeId)
+          && request.resource.data.keys().hasOnly(['stars'])
+          && isValidStars(request.resource.data.stars)
+          && getAfter(statsPath(recipeId)).data.count == get(statsPath(recipeId)).data.count
+          && getAfter(statsPath(recipeId)).data.sum
+               == get(statsPath(recipeId)).data.sum - resource.data.stars + request.resource.data.stars;
+
+        allow delete: if false;
+      }
     }
 
     match /groups/{groupId} {

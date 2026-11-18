@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, Share, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAuth } from '@/context/AuthContext';
+import { useRecipes } from '@/context/RecipesContext';
+import { CommunityRules } from '@/components/recipes/CommunityRules';
 
 export default function SettingsScreen() {
   const { toggleTheme } = useTheme();
@@ -14,6 +16,18 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   const memberNames = Object.entries(members);
+
+  const { blockedAuthors, unblock, ensureLoaded } = useRecipes();
+  const [showRules, setShowRules] = useState(false);
+  // Les auteurs bloques sont lus avec le reste du catalogue.
+  useEffect(() => { ensureLoaded(); }, [ensureLoaded]);
+
+  const confirmUnblock = (uid: string, name: string) => {
+    Alert.alert(`Débloquer ${name} ?`, 'Ses recettes apparaîtront de nouveau dans le catalogue.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Débloquer', onPress: () => { unblock(uid).catch((e) => Alert.alert('Erreur', (e as Error).message)); } },
+    ]);
+  };
 
   const shareCode = () => {
     if (!groupId) return;
@@ -89,6 +103,25 @@ export default function SettingsScreen() {
           <Text style={styles.leaveText}>Quitter ce foyer</Text>
         </TouchableOpacity>
 
+        <Text style={[styles.sectionLabel, { color: subText }]}>COMMUNAUTÉ</Text>
+        <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
+          <TouchableOpacity style={styles.row} onPress={() => setShowRules(true)}>
+            <Text style={[styles.rowLabel, { color: textColor }]}>Charte de partage des recettes</Text>
+            <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+          </TouchableOpacity>
+          <Text style={[styles.codeLabel, { color: subText }]}>Auteurs bloqués</Text>
+          {blockedAuthors.length === 0 ? (
+            <Text style={[styles.groupMeta, { color: subText }]}>Aucun auteur bloqué.</Text>
+          ) : blockedAuthors.map((a) => (
+            <View key={a.uid} style={[styles.row, { marginTop: 8 }]}>
+              <Text style={[styles.rowLabel, { color: textColor }]}>{a.name}</Text>
+              <TouchableOpacity onPress={() => confirmUnblock(a.uid, a.name)}>
+                <Text style={styles.unblockText}>Débloquer</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
         <Text style={[styles.sectionLabel, { color: subText }]}>AFFICHAGE</Text>
         <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
           <View style={styles.row}>
@@ -107,6 +140,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <CommunityRules visible={showRules} onClose={() => setShowRules(false)} />
     </SafeAreaView>
   );
 }
@@ -138,6 +172,7 @@ const styles = StyleSheet.create({
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { fontSize: 16, fontWeight: '600' },
+  unblockText: { color: '#FF7A41', fontWeight: '800', fontSize: 14 },
 
   signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 13, marginTop: 16, borderWidth: 1, borderColor: '#fecaca' },
   signOutText: { color: '#ef4444', fontWeight: '700', fontSize: 15 },

@@ -1,11 +1,28 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from "@/context/AppContext";
+import { useRecipes } from "@/context/RecipesContext";
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { RecipeCatalog } from "@/components/recipes/RecipeCatalog";
+import { RecipeDetail } from "@/components/recipes/RecipeDetail";
+import { RecipeEditor } from "@/components/recipes/RecipeEditor";
+import { guessRecipeCategory } from "@/utils/recipeCategories";
+import type { RecipeDraft } from "@/utils/recipes";
+import type { Recipe } from "@/types";
 
 type EditLevel = "categories" | "dishes" | "ingredients";
+
+/** Delai entre la fermeture d'une fenetre et l'ouverture de la suivante. */
+const MODAL_SWAP_DELAY = 400;
+/** Volet affiche : le garde-manger du foyer ou le catalogue de recettes. */
+type Pane = "mine" | "catalog";
+
+interface EditorState {
+  initial: RecipeDraft | null;
+  editingId?: string;
+}
 
 export default function EditScreen() {
   const {
@@ -28,6 +45,11 @@ export default function EditScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const inputRef = useRef<TextInput>(null);
+
+  const { getRecipe, ensureLoaded } = useRecipes();
+  const [pane, setPane] = useState<Pane>("mine");
+  const [detail, setDetail] = useState<Recipe | null>(null);
+  const [editor, setEditor] = useState<EditorState | null>(null);
 
   const selectedCategory = data.categories.find((c) => c.id === selectedCategoryId);
   const selectedDish = data.dishes.find((d) => d.id === selectedDishId);
@@ -55,6 +77,26 @@ export default function EditScreen() {
   const goToCategories = () => { setLevel("categories"); setSelectedCategoryId(null); setSelectedDishId(null); resetInput(); setSearch(""); };
   const goToDishes = (categoryId: string) => { setLevel("dishes"); setSelectedCategoryId(categoryId); setSelectedDishId(null); resetInput(); setSearch(""); };
   const goToIngredients = (dishId: string) => { setLevel("ingredients"); setSelectedDishId(dishId); resetInput(); setSearch(""); };
+
+  // Plat venu du catalogue : on retrouve sa recette (les recettes de la
+  // communaute doivent avoir ete chargees au moins une fois).
+  const linkedRecipe = selectedDish?.recipeId ? getRecipe(selectedDish.recipeId) : undefined;
+  useEffect(() => { if (selectedDish?.recipeId) ensureLoaded(); }, [selectedDish?.recipeId, ensureLoaded]);
+
+  // Partage d'un plat du foyer : le formulaire part de son nom et de ses ingredients.
+  const shareSelectedDish = () => {
+    if (!selectedDish) return;
+    setEditor({
+      initial: {
+        title: selectedDish.name,
+        category: guessRecipeCategory(selectedCategory?.name),
+        servings: 4,
+        minutes: 30,
+        ingredients: ingredientsInDish.map((i) => ({ name: i.name })),
+        steps: [],
+      },
+    });
+  };
 
   const getTitle = () => level === "categories" ? "Mes plats" : level === "dishes" ? (selectedCategory?.name ?? "Plats") : (selectedDish?.name ?? "Ingrédients");
   const getPlaceholder = () => level === "categories" ? "Ex: Pâtes, Riz, Soupes…" : level === "dishes" ? "Ex: Carbonara, Bolognaise…" : "Ex: Lardons, Crème, Riz…";
@@ -108,15 +150,36 @@ export default function EditScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top"]}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>Garde-manger</Text>
-          <Text style={[styles.title, { color: textColor }]}>{getTitle()}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.welcomeText}>{pane === "mine" ? "Garde-manger" : "Communauté"}</Text>
+          <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>{pane === "mine" ? getTitle() : "Recettes"}</Text>
         </View>
         <View style={[styles.profileBadge, { backgroundColor: cardBgColor }]}>
-          <Ionicons name={levelIcon as any} size={22} color="#FF7A41" />
+          <Ionicons name={(pane === "mine" ? levelIcon : "book") as any} size={22} color="#FF7A41" />
         </View>
       </View>
 
+      <View style={[styles.segment, { backgroundColor: isDarkMode ? '#0f172a' : '#f1f5f9' }]}>
+        {([["mine", "Mes plats", "list"], ["catalog", "Recettes", "book"]] as const).map(([id, label, icon]) => {
+          const active = pane === id;
+          return (
+            <TouchableOpacity
+              key={id}
+              style={[styles.segmentBtn, active && { backgroundColor: cardBgColor }]}
+              onPress={() => setPane(id)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+            >
+              <Ionicons name={(active ? icon : `${icon}-outline`) as any} size={16} color={active ? "#FF7A41" : subTextColor} />
+              <Text style={[styles.segmentText, { color: active ? textColor : subTextColor }]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {pane === "catalog" ? (
+        <RecipeCatalog onOpen={setDetail} onCreate={() => setEditor({ initial: null })} />
+      ) : (
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -129,6 +192,28 @@ export default function EditScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Breadcrumb />
+
+        {level === "ingredients" && selectedDish && (
+          <View style={styles.recipeActions}>
+            {selectedDish.recipeId ? (
+              <TouchableOpacity
+                style={[styles.recipeAction, { backgroundColor: cardBgColor, borderColor }]}
+                onPress={() => linkedRecipe && setDetail(linkedRecipe)}
+                disabled={!linkedRecipe}
+              >
+                <Ionicons name="book-outline" size={17} color="#FF7A41" />
+                <Text style={[styles.recipeActionText, { color: textColor }]}>
+                  {linkedRecipe ? "Voir la recette" : "Recette indisponible"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={[styles.recipeAction, { backgroundColor: cardBgColor, borderColor }]} onPress={shareSelectedDish}>
+                <Ionicons name="share-outline" size={17} color="#FF7A41" />
+                <Text style={[styles.recipeActionText, { color: textColor }]}>Partager à la communauté</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Recherche */}
         <View style={[styles.searchBar, { backgroundColor: searchBg }]}>
@@ -185,6 +270,35 @@ export default function EditScreen() {
         )))}
       </ScrollView>
       </KeyboardAvoidingView>
+      )}
+
+      <RecipeDetail
+        recipe={detail}
+        onClose={() => setDetail(null)}
+        onEdit={(recipe) => {
+          setDetail(null);
+          // iOS refuse d'ouvrir une fenetre pendant qu'une autre se ferme.
+          setTimeout(() => setEditor({
+            editingId: recipe.id,
+            initial: {
+              title: recipe.title, category: recipe.category, servings: recipe.servings,
+              minutes: recipe.minutes, ingredients: recipe.ingredients, steps: recipe.steps,
+            },
+          }), MODAL_SWAP_DELAY);
+        }}
+      />
+      <RecipeEditor
+        visible={editor !== null}
+        initial={editor?.initial ?? null}
+        editingId={editor?.editingId}
+        onClose={() => setEditor(null)}
+        onSaved={(created) => {
+          setEditor(null);
+          // Une recette tout juste publiee s'ouvre pour que l'auteur la voie
+          // telle que les autres la verront.
+          if (created) { setPane("catalog"); setTimeout(() => setDetail(created), MODAL_SWAP_DELAY); }
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -205,6 +319,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: '#FF7A41', shadowOpacity: 0.1, shadowRadius: 10 },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 240 },
+
+  segment: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, borderRadius: 14, padding: 4 },
+  segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 11 },
+  segmentText: { fontSize: 14, fontWeight: '800' },
+
+  recipeActions: { flexDirection: 'row', marginBottom: 14 },
+  recipeAction: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+  recipeActionText: { fontSize: 14, fontWeight: '700' },
 
   breadcrumb: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 14, paddingHorizontal: 4 },
   crumb: { flexDirection: 'row', alignItems: 'center', gap: 5 },

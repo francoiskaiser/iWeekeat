@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { RecipesProvider } from "@/context/RecipesContext";
 import { useThemeColors } from "@/hooks/useThemeColors";
 
 function RootLayoutNav() {
@@ -71,7 +72,10 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <RootLayoutNav />
+        {/* Au-dessus des onglets : les parametres gerent aussi les auteurs bloques. */}
+        <RecipesProvider>
+          <RootLayoutNav />
+        </RecipesProvider>
       </ThemeProvider>
     </AuthProvider>
   );

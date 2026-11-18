@@ -92,8 +92,18 @@ iWeekeat/
 - Le repas prévu au semainier s'affiche dans la même case
 - Rappels locaux avant l'événement (notification sur chaque téléphone)
 
-### 6. Réglages
+### 6. Recettes et communauté
+- Onglet **Plats** à deux volets : **Mes plats** (le garde-manger du foyer) et **Recettes** (le catalogue)
+- **80 recettes par défaut** (`constants/recipes.ts`), en 8 catégories : Classiques, Pâtes, Viande, Poisson, Végétarien, Soupes, Riz et céréales, Plats rapides. Elles sont embarquées dans l'app et restent consultables hors ligne
+- Recherche par nom ou par ingrédient, filtres par catégorie, tri par note, nouveauté ou temps
+- **Ajouter à mes plats** : la recette devient un plat du foyer, utilisable dans le semainier et la liste de courses ; « Voir la recette » reste accessible depuis le plat
+- Chacun peut **proposer une recette** ou **partager un de ses plats**
+- **Notes de 1 à 5 étoiles**, une par personne, modifiable. Le classement utilise une moyenne bayésienne : une seule note de 5 ne passe pas devant une recette notée 4,8 par cinquante personnes
+- Modération (exigence Google Play) : charte à accepter avant la première publication, bouton **Signaler**, **Bloquer l'auteur** (gestion des auteurs bloqués dans les paramètres). Après 3 signalements, une recette est masquée automatiquement
+
+### 7. Réglages
 - Nom du foyer, membres, code de partage
+- Charte de la communauté, auteurs bloqués
 - Mode sombre
 
 ## Comptes et foyers
@@ -105,6 +115,18 @@ Chaque utilisateur crée un compte (e-mail + mot de passe, Firebase Auth), puis 
 L'affichage se fait toujours depuis un cache local (`@react-native-async-storage/async-storage`) : l'app s'ouvre instantanément et **reste utilisable sans réseau**, ce qui compte au supermarché.
 
 La synchronisation avec Firestore se fait à l'ouverture de l'app, au retour au premier plan, et après chaque modification. Si le téléphone a des changements non envoyés (saisie hors ligne), ils sont poussés en priorité ; sinon le foyer fait autorité.
+
+## Modération des recettes
+
+Les recettes masquées après signalements attendent une vérification dans la console Firebase :
+
+1. *Firestore Database* → collection `recipes` → filtrer sur `hidden == true`.
+2. Les motifs sont dans la sous-collection `reports` de chaque recette.
+3. Recette acceptable : remettre `hidden` à `false` et `reportCount` à `0`. Sinon, supprimer le document.
+
+Les notes vivent dans `recipeStats/{idRecette}` (`count`, `sum`) et `recipeStats/{idRecette}/ratings/{uid}`. Les règles de sécurité empêchent de voter deux fois ou de modifier un compteur à la main.
+
+> Ne jamais changer l'identifiant (`id`) d'une recette par défaut : ses notes y sont rattachées.
 
 ## Configuration Firebase
 
