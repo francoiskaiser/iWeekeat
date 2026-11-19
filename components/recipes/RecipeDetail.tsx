@@ -10,6 +10,7 @@ import { categoryIcon, categoryLabel } from '@/constants/recipes';
 import { averageStars } from '@/utils/recipes';
 import type { Recipe } from '@/types';
 import { RatingSummary, StarInput } from './StarRating';
+import { PRIMARY, SUCCESS, DANGER } from '@/constants/theme';
 
 const REPORT_REASONS = [
   'Contenu inapproprié ou offensant',
@@ -25,9 +26,10 @@ interface Props {
 }
 
 export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
+  const { accent } = useThemeColors();
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
   const { stats, myRatings, loadMyRating, rate, report, block, remove } = useRecipes();
-  const { data, addRecipeToPantry } = useApp();
+  const { data, addRecipeToPantry, toggleFavoriteRecipe } = useApp();
   const { user } = useAuth();
 
   const [ratingBusy, setRatingBusy] = useState(false);
@@ -51,13 +53,14 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
   const recipeStats = stats[recipe.id];
   const myStars = myRatings[recipe.id] ?? null;
   const inPantry = data.dishes.some((d) => d.recipeId === recipe.id);
+  const isFavorite = (data.favoriteRecipeIds ?? []).includes(recipe.id);
 
   const onRate = async (stars: number) => {
     setRatingBusy(true);
     setMessage(null);
     try {
       await rate(recipe.id, stars);
-      setMessage({ kind: 'ok', text: 'Merci pour votre note !' });
+      setMessage({ kind: 'ok', text: 'Merci pour ta note !' });
     } catch (e) {
       setMessage({ kind: 'error', text: (e as Error).message });
     } finally {
@@ -70,8 +73,8 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
     setMessage({
       kind: 'ok',
       text: alreadyThere
-        ? 'Ce plat est déjà dans vos plats.'
-        : `Ajouté à vos plats (${categoryLabel(recipe.category)}). Vous pouvez le choisir dans le semainier.`,
+        ? 'Ce plat est déjà dans tes plats.'
+        : `Ajouté à tes plats (${categoryLabel(recipe.category)}). Tu peux le choisir dans le semainier.`,
     });
   };
 
@@ -81,10 +84,10 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
       const done = await report(recipe.id, reason);
       setReporting(false);
       Alert.alert(
-        done ? 'Merci pour votre signalement' : 'Déjà signalée',
+        done ? 'Merci pour ton signalement' : 'Déjà signalée',
         done
-          ? 'La recette ne vous est plus montrée. Elle sera vérifiée et retirée si elle ne respecte pas la charte.'
-          : 'Vous aviez déjà signalé cette recette.',
+          ? "La recette ne t'est plus montrée. Elle sera vérifiée et retirée si elle ne respecte pas la charte."
+          : 'Tu avais déjà signalé cette recette.',
       );
       onClose();
     } catch (e) {
@@ -98,7 +101,7 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
     if (!recipe.authorUid) return;
     Alert.alert(
       `Bloquer ${recipe.authorName ?? 'cet auteur'} ?`,
-      'Ses recettes ne vous seront plus montrées. Vous pourrez le débloquer depuis les paramètres.',
+      'Ses recettes ne te seront plus montrées. Tu pourras le débloquer depuis les paramètres.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -140,12 +143,23 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
       <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
         <View style={styles.header}>
           <View style={styles.eyebrowRow}>
-            <Ionicons name={categoryIcon(recipe.category) as any} size={14} color="#FF7A41" />
-            <Text style={styles.eyebrow}>{categoryLabel(recipe.category)}</Text>
+            <Ionicons name={categoryIcon(recipe.category) as any} size={14} color={accent} />
+            <Text style={[styles.eyebrow, { color: accent }]}>{categoryLabel(recipe.category)}</Text>
           </View>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close-circle" size={32} color="#cbd5e1" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => toggleFavoriteRecipe(recipe.id)}
+              style={styles.iconBtn}
+              accessibilityRole="button"
+              accessibilityLabel={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              accessibilityState={{ selected: isFavorite }}
+            >
+              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={28} color={isFavorite ? '#E11D48' : '#94a3b8'} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="Fermer">
+              <Ionicons name="close-circle" size={32} color="#cbd5e1" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -157,7 +171,7 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
             <RatingSummary average={averageStars(recipeStats)} count={recipeStats?.count ?? 0} color={subText} />
           </View>
           <Text style={[styles.author, { color: subText }]}>
-            {isCommunity ? `Proposée par ${isMine ? 'vous' : recipe.authorName ?? 'un membre'}` : "Recette iWeekeat"}
+            {isCommunity ? `Proposée par ${isMine ? 'toi' : recipe.authorName ?? 'un membre'}` : "Recette iWeekeat"}
           </Text>
 
           {isMine && recipe.hidden && (
@@ -183,7 +197,7 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
               <Ionicons
                 name={message.kind === 'error' ? 'alert-circle' : 'checkmark-circle'}
                 size={18}
-                color={message.kind === 'error' ? '#ef4444' : '#059669'}
+                color={message.kind === 'error' ? DANGER : '#059669'}
               />
               <Text style={[styles.messageText, { color: message.kind === 'error' ? '#b91c1c' : '#047857' }]}>{message.text}</Text>
             </View>
@@ -209,11 +223,11 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
 
           {!isMine && (
             <>
-              <Text style={[styles.section, { color: text }]}>Votre note</Text>
+              <Text style={[styles.section, { color: text }]}>Ta note</Text>
               <View style={[styles.card, styles.rateCard, { backgroundColor: card, borderColor: border }]}>
                 <StarInput value={myStars} onChange={onRate} disabled={ratingBusy} />
                 <Text style={[styles.rateHelp, { color: subText }]}>
-                  {myStars ? 'Touchez une étoile pour changer votre note.' : 'Les recettes les mieux notées remontent en tête du catalogue.'}
+                  {myStars ? 'Touche une étoile pour changer ta note.' : 'Les recettes les mieux notées remontent en tête du catalogue.'}
                 </Text>
               </View>
             </>
@@ -222,11 +236,11 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
           {isMine && (
             <View style={styles.ownerRow}>
               <TouchableOpacity style={[styles.ghostBtn, { borderColor: border }]} onPress={() => onEdit(recipe)}>
-                <Ionicons name="pencil" size={17} color="#FF7A41" />
+                <Ionicons name="pencil" size={17} color={accent} />
                 <Text style={[styles.ghostText, { color: text }]}>Modifier</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.ghostBtn, styles.dangerBorder]} onPress={onDelete}>
-                <Ionicons name="trash-outline" size={17} color="#ef4444" />
+                <Ionicons name="trash-outline" size={17} color={DANGER} />
                 <Text style={styles.dangerText}>Supprimer</Text>
               </TouchableOpacity>
             </View>
@@ -237,7 +251,7 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
               {!reporting ? (
                 <View style={styles.ownerRow}>
                   <TouchableOpacity style={[styles.ghostBtn, styles.dangerBorder]} onPress={() => setReporting(true)}>
-                    <Ionicons name="flag-outline" size={17} color="#ef4444" />
+                    <Ionicons name="flag-outline" size={17} color={DANGER} />
                     <Text style={styles.dangerText}>Signaler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.ghostBtn, { borderColor: border }]} onPress={onBlock}>
@@ -247,7 +261,7 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
                 </View>
               ) : (
                 <View style={[styles.card, { backgroundColor: card, borderColor: border, padding: 14, marginTop: 24 }]}>
-                  <Text style={[styles.reportTitle, { color: text }]}>Pourquoi signalez-vous cette recette ?</Text>
+                  <Text style={[styles.reportTitle, { color: text }]}>Pourquoi signales-tu cette recette ?</Text>
                   {REPORT_REASONS.map((reason) => (
                     <TouchableOpacity
                       key={reason}
@@ -260,7 +274,7 @@ export function RecipeDetail({ recipe, onClose, onEdit }: Props) {
                     </TouchableOpacity>
                   ))}
                   {reportBusy ? (
-                    <ActivityIndicator color="#FF7A41" style={{ marginTop: 10 }} />
+                    <ActivityIndicator color={accent} style={{ marginTop: 10 }} />
                   ) : (
                     <TouchableOpacity onPress={() => setReporting(false)} style={styles.cancelLink}>
                       <Text style={[styles.cancelText, { color: subText }]}>Annuler</Text>
@@ -289,7 +303,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingTop: 14, paddingBottom: 4 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  eyebrow: { fontSize: 13, color: '#FF7A41', fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  iconBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  eyebrow: { fontSize: 13, color: PRIMARY, fontWeight: '700' },
   scroll: { paddingHorizontal: 22, paddingBottom: 80 },
   title: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginTop: 4 },
 
@@ -301,7 +317,7 @@ const styles = StyleSheet.create({
   warnBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 14 },
   warnText: { flex: 1, color: '#92400e', fontSize: 13, lineHeight: 18, fontWeight: '600' },
 
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 15, marginTop: 18 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SUCCESS, borderRadius: 16, paddingVertical: 15, marginTop: 18 },
   addBtnDone: { backgroundColor: '#94a3b8' },
   addBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
@@ -317,7 +333,7 @@ const styles = StyleSheet.create({
   ingQty: { fontSize: 14, fontWeight: '600' },
 
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  stepNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF7A41', alignItems: 'center', justifyContent: 'center' },
+  stepNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center' },
   stepNumberText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   stepText: { flex: 1, fontSize: 15, lineHeight: 22, paddingTop: 3 },
 
@@ -328,7 +344,7 @@ const styles = StyleSheet.create({
   ghostBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderRadius: 14, paddingVertical: 13 },
   ghostText: { fontSize: 14, fontWeight: '700' },
   dangerBorder: { borderColor: '#fecaca' },
-  dangerText: { color: '#ef4444', fontSize: 14, fontWeight: '700' },
+  dangerText: { color: DANGER, fontSize: 14, fontWeight: '700' },
 
   moderation: { marginTop: 4 },
   reportTitle: { fontSize: 15, fontWeight: '800', marginBottom: 10 },

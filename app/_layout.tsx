@@ -8,6 +8,7 @@ import { RecipesProvider } from "@/context/RecipesContext";
 import { useThemeColors } from "@/hooks/useThemeColors";
 
 function RootLayoutNav() {
+  const { accent } = useThemeColors();
   const { configured, user, groupId, initialized } = useAuth();
   const { isDarkMode, background, text, subText } = useThemeColors();
   const segments = useSegments();
@@ -38,7 +39,7 @@ function RootLayoutNav() {
   if (!configured) {
     return (
       <View style={[styles.center, { backgroundColor: background }]}>
-        <Text style={[styles.title, { color: text }]}>Firebase non configure</Text>
+        <Text style={[styles.title, { color: text }]}>Firebase non configuré</Text>
         <Text style={[styles.body, { color: subText }]}>
           Renseignez la section extra.firebase du fichier app.json avec la
           configuration de votre projet Firebase, puis relancez l&apos;application.
@@ -50,7 +51,7 @@ function RootLayoutNav() {
   if (!initialized) {
     return (
       <View style={[styles.center, { backgroundColor: background }]}>
-        <ActivityIndicator size="large" color="#FF7A41" />
+        <ActivityIndicator size="large" color={accent} />
       </View>
     );
   }

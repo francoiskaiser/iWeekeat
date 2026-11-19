@@ -6,7 +6,7 @@ import { normalizeWeekPlan } from './storage';
 // Les donnees du foyer sont reparties en trois documents plutot qu'un seul
 // gros blob : si l'un edite le garde-manger pendant que l'autre coche des
 // courses, les deux ecritures ne se marchent plus dessus.
-const DOCS = ['pantry', 'planning', 'shopping', 'calendar'] as const;
+const DOCS = ['pantry', 'planning', 'shopping', 'calendar', 'library'] as const;
 
 export type SharedAppData = AppData & { recurringExtras?: string[] };
 
@@ -24,9 +24,16 @@ function split(data: SharedAppData) {
       shoppingList: data.shoppingList ?? [],
       recurringExtras: data.recurringExtras ?? [],
       shoppingListGenerated: data.shoppingListGenerated ?? false,
+      dismissedFood: data.dismissedFood ?? [],
     },
     calendar: {
       events: data.events ?? [],
+    },
+    // Favoris et semaines types : a part, pour ne pas reecrire le
+    // garde-manger a chaque coeur.
+    library: {
+      favoriteRecipeIds: data.favoriteRecipeIds ?? [],
+      weekTemplates: data.weekTemplates ?? [],
     },
   };
 }
@@ -43,7 +50,7 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
 
   if (snaps.every((s) => !s.exists())) return null;
 
-  const [pantry, planning, shopping, calendar] = snaps.map((s) => (s.exists() ? s.data() : {}));
+  const [pantry, planning, shopping, calendar, library] = snaps.map((s) => (s.exists() ? s.data() : {}));
 
   // Un foyer alimente par une version anterieure peut encore stocker un seul
   // repas par jour : on convertit ici comme pour le cache local.
@@ -55,7 +62,10 @@ export async function pullGroupData(groupId: string): Promise<SharedAppData | nu
     shoppingList: shopping.shoppingList ?? [],
     recurringExtras: shopping.recurringExtras ?? [],
     shoppingListGenerated: shopping.shoppingListGenerated ?? false,
+    dismissedFood: shopping.dismissedFood ?? [],
     events: calendar.events ?? [],
+    favoriteRecipeIds: library.favoriteRecipeIds ?? [],
+    weekTemplates: library.weekTemplates ?? [],
   } as SharedAppData) as SharedAppData;
 }
 
@@ -83,9 +93,15 @@ function toPartial(name: DocName, raw: Record<string, unknown>): Partial<SharedA
         shoppingList: (raw.shoppingList ?? []) as SharedAppData['shoppingList'],
         recurringExtras: (raw.recurringExtras ?? []) as string[],
         shoppingListGenerated: Boolean(raw.shoppingListGenerated),
+        dismissedFood: (raw.dismissedFood ?? []) as string[],
       };
     case 'calendar':
       return { events: (raw.events ?? []) as SharedAppData['events'] };
+    case 'library':
+      return {
+        favoriteRecipeIds: (raw.favoriteRecipeIds ?? []) as string[],
+        weekTemplates: (raw.weekTemplates ?? []) as SharedAppData['weekTemplates'],
+      };
   }
 }
 
@@ -121,7 +137,7 @@ export function subscribeGroupData(
   return () => unsubscribes.forEach((stop) => stop());
 }
 
-/** Ecrit les donnees du foyer. Les quatre documents partent en une seule fois. */
+/** Ecrit les donnees du foyer. Tous les documents partent en une seule fois. */
 export async function pushGroupData(groupId: string, data: SharedAppData): Promise<void> {
   const db = getDb();
   const parts = split(data);

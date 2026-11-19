@@ -11,6 +11,7 @@ import { RecipeEditor } from "@/components/recipes/RecipeEditor";
 import { guessRecipeCategory } from "@/utils/recipeCategories";
 import type { RecipeDraft } from "@/utils/recipes";
 import type { Recipe } from "@/types";
+import { BRAND, PRIMARY, SUCCESS, DANGER } from '@/constants/theme';
 
 type EditLevel = "categories" | "dishes" | "ingredients";
 
@@ -25,6 +26,7 @@ interface EditorState {
 }
 
 export default function EditScreen() {
+  const { accent } = useThemeColors();
   const {
     isDarkMode,
     background: bgColor,
@@ -99,7 +101,7 @@ export default function EditScreen() {
   };
 
   const getTitle = () => level === "categories" ? "Mes plats" : level === "dishes" ? (selectedCategory?.name ?? "Plats") : (selectedDish?.name ?? "Ingrédients");
-  const getPlaceholder = () => level === "categories" ? "Ex: Pâtes, Riz, Soupes…" : level === "dishes" ? "Ex: Carbonara, Bolognaise…" : "Ex: Lardons, Crème, Riz…";
+  const getPlaceholder = () => level === "categories" ? "Ex. : Pâtes, Riz, Soupes…" : level === "dishes" ? "Ex. : Carbonara, Bolognaise…" : "Ex. : Lardons, Crème, Riz…";
   const getSearchPlaceholder = () => level === "categories" ? "Rechercher une catégorie…" : level === "dishes" ? "Rechercher un plat…" : "Rechercher un ingrédient…";
   const getAddLabel = () => {
     if (editingId) return "Enregistrer";
@@ -112,18 +114,18 @@ export default function EditScreen() {
   const Breadcrumb = () => (
     <View style={styles.breadcrumb}>
       <TouchableOpacity onPress={goToCategories} style={styles.crumb}>
-        <Ionicons name="grid" size={13} color={level === "categories" ? "#FF7A41" : subTextColor} />
-        <Text style={[styles.crumbText, { color: level === "categories" ? "#FF7A41" : subTextColor }]}>Catégories</Text>
+        <Ionicons name="grid" size={13} color={level === "categories" ? PRIMARY : subTextColor} />
+        <Text style={[styles.crumbText, { color: level === "categories" ? PRIMARY : subTextColor }]}>Catégories</Text>
       </TouchableOpacity>
       {selectedCategoryId && (<>
         <Ionicons name="chevron-forward" size={13} color="#cbd5e1" />
         <TouchableOpacity onPress={() => goToDishes(selectedCategoryId)} style={styles.crumb}>
-          <Text style={[styles.crumbText, { color: level === "dishes" ? "#FF7A41" : subTextColor }]}>{selectedCategory?.name ?? "Plats"}</Text>
+          <Text style={[styles.crumbText, { color: level === "dishes" ? PRIMARY : subTextColor }]}>{selectedCategory?.name ?? "Plats"}</Text>
         </TouchableOpacity>
       </>)}
       {selectedDishId && level === "ingredients" && (<>
         <Ionicons name="chevron-forward" size={13} color="#cbd5e1" />
-        <Text style={[styles.crumbText, { color: "#FF7A41" }]}>{selectedDish?.name ?? "Ingr."}</Text>
+        <Text style={[styles.crumbText, { color: PRIMARY }]}>{selectedDish?.name ?? "Ingr."}</Text>
       </>)}
     </View>
   );
@@ -131,7 +133,7 @@ export default function EditScreen() {
   const RowCard = ({ icon, title, subtitle, onPress, onDelete, chevron }: any) => (
     <View style={[styles.rowCard, { backgroundColor: cardBgColor }]}>
       <TouchableOpacity style={styles.rowMain} onPress={onPress} activeOpacity={0.7}>
-        <View style={[styles.rowIcon, { backgroundColor: '#FF7A4115' }]}><Ionicons name={icon} size={20} color="#FF7A41" /></View>
+        <View style={[styles.rowIcon, { backgroundColor: BRAND + '15' }]}><Ionicons name={icon} size={20} color={accent} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.rowTitle, { color: textColor }]}>{title}</Text>
           <Text style={[styles.rowSub, { color: subTextColor }]}>{subtitle}</Text>
@@ -139,7 +141,7 @@ export default function EditScreen() {
         {chevron && <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />}
       </TouchableOpacity>
       <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
-        <Ionicons name="trash-outline" size={18} color="#ef4444" />
+        <Ionicons name="trash-outline" size={18} color={DANGER} />
       </TouchableOpacity>
     </View>
   );
@@ -155,7 +157,7 @@ export default function EditScreen() {
           <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>{pane === "mine" ? getTitle() : "Recettes"}</Text>
         </View>
         <View style={[styles.profileBadge, { backgroundColor: cardBgColor }]}>
-          <Ionicons name={(pane === "mine" ? levelIcon : "book") as any} size={22} color="#FF7A41" />
+          <Ionicons name={(pane === "mine" ? levelIcon : "book") as any} size={22} color={accent} />
         </View>
       </View>
 
@@ -170,7 +172,7 @@ export default function EditScreen() {
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
             >
-              <Ionicons name={(active ? icon : `${icon}-outline`) as any} size={16} color={active ? "#FF7A41" : subTextColor} />
+              <Ionicons name={(active ? icon : `${icon}-outline`) as any} size={16} color={active ? PRIMARY : subTextColor} />
               <Text style={[styles.segmentText, { color: active ? textColor : subTextColor }]}>{label}</Text>
             </TouchableOpacity>
           );
@@ -201,14 +203,14 @@ export default function EditScreen() {
                 onPress={() => linkedRecipe && setDetail(linkedRecipe)}
                 disabled={!linkedRecipe}
               >
-                <Ionicons name="book-outline" size={17} color="#FF7A41" />
+                <Ionicons name="book-outline" size={17} color={accent} />
                 <Text style={[styles.recipeActionText, { color: textColor }]}>
                   {linkedRecipe ? "Voir la recette" : "Recette indisponible"}
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={[styles.recipeAction, { backgroundColor: cardBgColor, borderColor }]} onPress={shareSelectedDish}>
-                <Ionicons name="share-outline" size={17} color="#FF7A41" />
+                <Ionicons name="share-outline" size={17} color={accent} />
                 <Text style={[styles.recipeActionText, { color: textColor }]}>Partager à la communauté</Text>
               </TouchableOpacity>
             )}
@@ -223,8 +225,8 @@ export default function EditScreen() {
         </View>
 
         {/* Champ d'ajout / édition */}
-        <View style={[styles.addRow, { backgroundColor: cardBgColor, borderColor: editingId ? '#FF7A41' : borderColor }]}>
-          <Ionicons name={editingId ? "pencil" : "add"} size={20} color={editingId ? "#FF7A41" : "#94a3b8"} />
+        <View style={[styles.addRow, { backgroundColor: cardBgColor, borderColor: editingId ? PRIMARY : borderColor }]}>
+          <Ionicons name={editingId ? "pencil" : "add"} size={20} color={editingId ? PRIMARY : "#94a3b8"} />
           <TextInput ref={inputRef} style={[styles.addInput, { color: textColor }]} placeholder={getPlaceholder()} placeholderTextColor="#94a3b8" value={inputValue} onChangeText={setInputValue} onSubmitEditing={handleSubmit} returnKeyType="done" />
         </View>
         <TouchableOpacity style={[styles.addBtn, !inputValue.trim() && styles.addBtnDisabled]} onPress={handleSubmit} disabled={!inputValue.trim()}>
@@ -317,7 +319,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingVertical: 20 },
   welcomeText: { fontSize: 15, color: '#64748b', fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
-  profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: '#FF7A41', shadowOpacity: 0.1, shadowRadius: 10 },
+  profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: PRIMARY, shadowOpacity: 0.1, shadowRadius: 10 },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 240 },
 
   segment: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, borderRadius: 14, padding: 4 },
@@ -337,11 +339,11 @@ const styles = StyleSheet.create({
 
   addRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, paddingHorizontal: 15, height: 52, borderWidth: 1, marginBottom: 10 },
   addInput: { flex: 1, fontSize: 16 },
-  addBtn: { backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderRadius: 16, gap: 10, elevation: 4, shadowColor: '#10B981', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  addBtn: { backgroundColor: SUCCESS, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderRadius: 16, gap: 10, elevation: 4, shadowColor: SUCCESS, shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   addBtnDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0, elevation: 0 },
   addBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   cancelBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 6 },
-  cancelBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '700' },
+  cancelBtnText: { color: DANGER, fontSize: 14, fontWeight: '700' },
 
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 22, marginBottom: 12, paddingHorizontal: 4 },
   listCount: { fontSize: 15, fontWeight: '800' },

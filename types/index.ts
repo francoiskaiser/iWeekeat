@@ -136,4 +136,20 @@ export interface AppData {
   shoppingList: ShoppingItem[];
   shoppingListGenerated: boolean;
   events: CalendarEvent[];
+  /**
+   * Ingredients que le foyer a deja (passes au mode Placards) : la liste ne
+   * les rajoute pas tant qu'ils restent au menu. Noms normalises.
+   */
+  dismissedFood?: string[];
+  /** Recettes du catalogue mises en favori par le foyer. */
+  favoriteRecipeIds?: string[];
+  /** Semaines types enregistrees par le foyer. */
+  weekTemplates?: WeekTemplate[];
+}
+
+/** Semaine type : les repas de chaque jour, du lundi (0) au dimanche (6). */
+export interface WeekTemplate {
+  id: string;
+  name: string;
+  days: DayPlan[][];
 }

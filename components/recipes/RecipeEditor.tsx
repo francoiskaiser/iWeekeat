@@ -11,6 +11,7 @@ import { RECIPE_CATEGORIES } from '@/constants/recipes';
 import type { Recipe, RecipeCategory } from '@/types';
 import type { RecipeDraft } from '@/utils/recipes';
 import { CommunityRules } from './CommunityRules';
+import { PRIMARY, SUCCESS, DANGER } from '@/constants/theme';
 
 const MAX_INGREDIENTS = 40;
 const MAX_STEPS = 20;
@@ -34,6 +35,7 @@ const rowKey = () => `row-${rowCounter++}`;
 const EMPTY: RecipeDraft = { title: '', category: 'classiques', servings: 4, minutes: 30, ingredients: [], steps: [] };
 
 export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: Props) {
+  const { accent } = useThemeColors();
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
   const inputBg = isDarkMode ? '#0f172a' : '#fff';
   const { rulesAccepted, acceptRules, publish, edit } = useRecipes();
@@ -66,19 +68,19 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
 
   const buildDraft = (): RecipeDraft | string => {
     const cleanTitle = title.trim();
-    if (cleanTitle.length < 2) return 'Donnez un nom à la recette.';
+    if (cleanTitle.length < 2) return 'Donne un nom à la recette.';
     if (cleanTitle.length > 80) return 'Le nom est trop long (80 caractères maximum).';
 
     const mins = parseInt(minutes, 10);
-    if (!Number.isFinite(mins) || mins < 1 || mins > 720) return 'Indiquez un temps entre 1 et 720 minutes.';
+    if (!Number.isFinite(mins) || mins < 1 || mins > 720) return 'Indique un temps entre 1 et 720 minutes.';
 
     const ing = ingredients
       .filter((i) => i.name.trim())
       .map((i) => ({ name: i.name.trim(), quantity: i.quantity.trim() || undefined }));
-    if (!ing.length) return 'Ajoutez au moins un ingrédient.';
+    if (!ing.length) return 'Ajoute au moins un ingrédient.';
 
     const st = steps.map((s) => s.text.trim()).filter(Boolean);
-    if (!st.length) return 'Décrivez au moins une étape.';
+    if (!st.length) return 'Décris au moins une étape.';
 
     return { title: cleanTitle, category, servings, minutes: mins, ingredients: ing, steps: st };
   };
@@ -134,7 +136,7 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.eyebrow}>{editingId ? 'Ma recette' : 'Communauté'}</Text>
+              <Text style={[styles.eyebrow, { color: accent }]}>{editingId ? 'Ma recette' : 'Communauté'}</Text>
               <Text style={[styles.title, { color: text }]}>{editingId ? 'Modifier la recette' : 'Proposer une recette'}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -179,11 +181,11 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
                 <Text style={[styles.label, { color: text }]}>Personnes</Text>
                 <View style={[styles.stepper, { backgroundColor: inputBg, borderColor: border }]}>
                   <TouchableOpacity onPress={() => setServings((s) => Math.max(1, s - 1))} style={styles.stepperBtn}>
-                    <Ionicons name="remove" size={20} color="#FF7A41" />
+                    <Ionicons name="remove" size={20} color={accent} />
                   </TouchableOpacity>
                   <Text style={[styles.stepperValue, { color: text }]}>{servings}</Text>
                   <TouchableOpacity onPress={() => setServings((s) => Math.min(20, s + 1))} style={styles.stepperBtn}>
-                    <Ionicons name="add" size={20} color="#FF7A41" />
+                    <Ionicons name="add" size={20} color={accent} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -222,7 +224,7 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
                   maxLength={60}
                 />
                 <TouchableOpacity onPress={() => removeIngredient(row.key)} style={styles.removeBtn} accessibilityLabel="Retirer l'ingrédient">
-                  <Ionicons name="close" size={18} color="#ef4444" />
+                  <Ionicons name="close" size={18} color={DANGER} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -231,8 +233,8 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
                 style={[styles.addLine, { borderColor: border }]}
                 onPress={() => setIngredients((prev) => [...prev, { key: rowKey(), quantity: '', name: '' }])}
               >
-                <Ionicons name="add" size={18} color="#FF7A41" />
-                <Text style={styles.addLineText}>Ajouter un ingrédient</Text>
+                <Ionicons name="add" size={18} color={accent} />
+                <Text style={[styles.addLineText, { color: accent }]}>Ajouter un ingrédient</Text>
               </TouchableOpacity>
             )}
 
@@ -242,7 +244,7 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
                 <View style={styles.stepNumber}><Text style={styles.stepNumberText}>{index + 1}</Text></View>
                 <TextInput
                   style={[styles.input, styles.stepInput, { backgroundColor: inputBg, borderColor: border, color: text }]}
-                  placeholder="Décrivez cette étape"
+                  placeholder="Décris cette étape"
                   placeholderTextColor="#94a3b8"
                   value={row.text}
                   onChangeText={(v) => updateStep(row.key, v)}
@@ -250,7 +252,7 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
                   maxLength={500}
                 />
                 <TouchableOpacity onPress={() => removeStep(row.key)} style={styles.removeBtn} accessibilityLabel="Retirer l'étape">
-                  <Ionicons name="close" size={18} color="#ef4444" />
+                  <Ionicons name="close" size={18} color={DANGER} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -259,8 +261,8 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
                 style={[styles.addLine, { borderColor: border }]}
                 onPress={() => setSteps((prev) => [...prev, { key: rowKey(), text: '' }])}
               >
-                <Ionicons name="add" size={18} color="#FF7A41" />
-                <Text style={styles.addLineText}>Ajouter une étape</Text>
+                <Ionicons name="add" size={18} color={accent} />
+                <Text style={[styles.addLineText, { color: accent }]}>Ajouter une étape</Text>
               </TouchableOpacity>
             )}
 
@@ -268,14 +270,14 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
               <View style={[styles.notice, { backgroundColor: card, borderColor: border }]}>
                 <Ionicons name="globe-outline" size={18} color={subText} />
                 <Text style={[styles.noticeText, { color: subText }]}>
-                  Votre recette sera visible par tous les utilisateurs d&apos;iWeekeat, avec votre prénom. Ils pourront la noter et l&apos;ajouter à leurs plats.
+                  Ta recette sera visible par tous les utilisateurs d&apos;iWeekeat, avec ton prénom. Ils pourront la noter et l&apos;ajouter à leurs plats.
                 </Text>
               </View>
             )}
 
             {error && (
               <View style={styles.errorBox}>
-                <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                <Ionicons name="alert-circle" size={18} color={DANGER} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
@@ -296,7 +298,7 @@ export function RecipeEditor({ visible, initial, editingId, onClose, onSaved }: 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 14, paddingBottom: 8 },
-  eyebrow: { fontSize: 13, color: '#FF7A41', fontWeight: '700' },
+  eyebrow: { fontSize: 13, color: PRIMARY, fontWeight: '700' },
   title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   scroll: { paddingHorizontal: 22, paddingBottom: 220 },
 
@@ -306,7 +308,7 @@ const styles = StyleSheet.create({
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1 },
-  chipActive: { backgroundColor: '#FF7A41', borderColor: '#FF7A41' },
+  chipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   chipText: { fontSize: 14, fontWeight: '700' },
 
   twoCols: { flexDirection: 'row', gap: 12 },
@@ -319,12 +321,12 @@ const styles = StyleSheet.create({
   removeBtn: { backgroundColor: '#fef2f2', padding: 8, borderRadius: 10 },
 
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  stepNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF7A41', alignItems: 'center', justifyContent: 'center', marginTop: 11 },
+  stepNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center', marginTop: 11 },
   stepNumberText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   stepInput: { flex: 1, height: undefined, minHeight: 50, paddingTop: 14, paddingBottom: 14, textAlignVertical: 'top' },
 
   addLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 12, marginTop: 2 },
-  addLineText: { color: '#FF7A41', fontWeight: '700', fontSize: 14 },
+  addLineText: { color: PRIMARY, fontWeight: '700', fontSize: 14 },
 
   notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 14, borderWidth: 1, padding: 12, marginTop: 22 },
   noticeText: { flex: 1, fontSize: 13, lineHeight: 19 },
@@ -332,6 +334,6 @@ const styles = StyleSheet.create({
   errorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 18 },
   errorText: { flex: 1, color: '#b91c1c', fontSize: 14, lineHeight: 19, fontWeight: '600' },
 
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 16, marginTop: 22 },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SUCCESS, borderRadius: 16, paddingVertical: 16, marginTop: 22 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

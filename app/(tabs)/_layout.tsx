@@ -4,8 +4,9 @@ import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppProvider } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
+import { PRIMARY } from '@/constants/theme';
 
-const ACCENT = "#FF7A41";
+const ACCENT = PRIMARY;
 
 // Config des onglets : nom de route -> icône + libellé
 const TABS: Record<string, { icon: any; label: string }> = {
@@ -21,7 +22,8 @@ function CustomTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { isDarkMode } = useTheme();
   const barBg = isDarkMode ? "#334155" : "#ffffff";
-  const inactive = isDarkMode ? "#64748b" : "#94a3b8";
+  // Icones inactives : contraste 3:1 minimum sur le fond de la barre.
+  const inactive = isDarkMode ? "#94a3b8" : "#64748b";
 
   return (
     <View style={[styles.wrapper, { bottom: insets.bottom > 0 ? insets.bottom + 4 : 18 }]} pointerEvents="box-none">

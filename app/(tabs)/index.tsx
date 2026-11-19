@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,8 +7,13 @@ import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { getCurrentWeekDateKeys, toDateKey } from "@/utils/date";
+import { useRecipes } from "@/context/RecipesContext";
+import { RecipeDetail } from "@/components/recipes/RecipeDetail";
+import type { Recipe } from "@/types";
+import { BRAND, PRIMARY, SUCCESS } from '@/constants/theme';
 
 export default function HomeScreen() {
+  const { accent, successText } = useThemeColors();
   const router = useRouter();
   const { data, syncing, syncError, syncNow } = useApp();
   const { displayName } = useAuth();
@@ -29,12 +34,20 @@ export default function HomeScreen() {
   const dateLabel = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const dateLabelCap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
 
-  const todayDishes = useMemo(
+  const todayMeals = useMemo(
     () => (data.weekPlan[todayKey] ?? [])
-      .map((plan) => data.dishes.find((d) => d.id === plan.dishId)?.name)
-      .filter((n): n is string => Boolean(n)),
+      .map((plan) => data.dishes.find((d) => d.id === plan.dishId))
+      .filter((d): d is NonNullable<typeof d> => Boolean(d)),
     [data.weekPlan, data.dishes, todayKey],
   );
+  const todayDishes = todayMeals.map((d) => d.name);
+
+  // Le plat du jour vient-il du catalogue ? Sa recette s'ouvre alors en un geste.
+  const { getRecipe, ensureLoaded } = useRecipes();
+  const tonightRecipeId = todayMeals.find((d) => d.recipeId)?.recipeId;
+  useEffect(() => { if (tonightRecipeId) ensureLoaded(); }, [tonightRecipeId, ensureLoaded]);
+  const tonightRecipe = tonightRecipeId ? getRecipe(tonightRecipeId) : undefined;
+  const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
 
   // --- Compteurs (semaine en cours uniquement) ---
   const currentWeekKeys = useMemo(() => getCurrentWeekDateKeys(today), [today]);
@@ -52,7 +65,7 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.eyebrow}>{dateLabelCap}</Text>
+          <Text style={[styles.eyebrow, { color: accent }]}>{dateLabelCap}</Text>
           <Text style={[styles.title, { color: textColor }]}>Bonjour {firstName}</Text>
         </View>
         <TouchableOpacity style={styles.profileBadge} onPress={() => router.push('/settings')} activeOpacity={0.7}>
@@ -71,30 +84,44 @@ export default function HomeScreen() {
         )}
 
         {/* CARTE "CE SOIR" */}
-        <TouchableOpacity activeOpacity={0.9} style={styles.tonightCard} onPress={() => router.push('/planner')}>
-          <Text style={styles.tonightEyebrow}>🍽️ CE SOIR</Text>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.tonightCard}
+          onPress={() => (tonightRecipe ? setOpenRecipe(tonightRecipe) : router.push('/planner'))}
+        >
+          <View style={styles.tonightEyebrowRow}>
+            <Ionicons name="restaurant" size={13} color="#fff" />
+            <Text style={styles.tonightEyebrow}>CE SOIR</Text>
+          </View>
           <Text style={styles.tonightMeal}>{todayDishes.length ? todayDishes.join(" + ") : "Rien de prévu"}</Text>
           <View style={styles.tonightActions}>
-            <View style={styles.tonightBtnGhost}>
+            <TouchableOpacity style={styles.tonightBtnGhost} onPress={() => router.push('/planner')}>
               <Ionicons name={todayDishes.length ? "swap-horizontal" : "add"} size={16} color="#fff" />
               <Text style={styles.tonightBtnGhostText}>{todayDishes.length ? "Changer" : "Planifier"}</Text>
-            </View>
-            <TouchableOpacity style={styles.tonightBtnSolid} onPress={() => router.push('/shopping')}>
-              <Ionicons name="cart" size={16} color="#FF7A41" />
-              <Text style={styles.tonightBtnSolidText}>Ingrédients</Text>
             </TouchableOpacity>
+            {tonightRecipe ? (
+              <TouchableOpacity style={styles.tonightBtnSolid} onPress={() => setOpenRecipe(tonightRecipe)}>
+                <Ionicons name="book" size={16} color="#C2410C" />
+                <Text style={[styles.tonightBtnSolidText, { color: accent }]}>Voir la recette</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.tonightBtnSolid} onPress={() => router.push('/shopping')}>
+                <Ionicons name="cart" size={16} color="#C2410C" />
+                <Text style={[styles.tonightBtnSolidText, { color: accent }]}>Courses</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
 
         {/* CARTE PROGRESSION SEMAINE */}
         <TouchableOpacity activeOpacity={0.8} style={[styles.weekCard, { backgroundColor: cardBgColor }]} onPress={() => router.push('/planner')}>
-          <View style={[styles.weekRing, { backgroundColor: '#FF7A4115' }]}>
-            <Text style={styles.weekRingText}>{plannedCount}/{currentWeekKeys.length}</Text>
+          <View style={[styles.weekRing, { backgroundColor: BRAND + '15' }]}>
+            <Text style={[styles.weekRingText, { color: accent }]}>{plannedCount}/{currentWeekKeys.length}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.weekTitle, { color: textColor }]}>Ta semaine</Text>
             <Text style={[styles.weekSub, { color: subTextColor }]}>
-              {plannedCount >= currentWeekKeys.length ? "Semaine complète 🎉" : `${currentWeekKeys.length - plannedCount} jour(s) sans repas`}
+              {plannedCount >= currentWeekKeys.length ? "Semaine complète" : `${currentWeekKeys.length - plannedCount} jour(s) sans repas`}
             </Text>
             <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
               <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
@@ -107,8 +134,8 @@ export default function HomeScreen() {
         <View style={styles.gridContainer}>
           <TouchableOpacity style={[styles.gridCard, { backgroundColor: cardBgColor }]} onPress={() => router.push("/shopping")} activeOpacity={0.8}>
             <View style={styles.gridTop}>
-              <Ionicons name="cart" size={24} color="#10B981" />
-              <View style={[styles.gridBadge, { backgroundColor: '#10B98115' }]}><Text style={[styles.gridBadgeText, { color: '#10B981' }]}>{shoppingCount}</Text></View>
+              <Ionicons name="cart" size={24} color={successText} />
+              <View style={[styles.gridBadge, { backgroundColor: '#10B98115' }]}><Text style={[styles.gridBadgeText, { color: SUCCESS }]}>{shoppingCount}</Text></View>
             </View>
             <Text style={[styles.gridTitle, { color: textColor }]}>Courses</Text>
             <Text style={[styles.gridDesc, { color: subTextColor }]}>{shoppingChecked} déjà cochés</Text>
@@ -116,14 +143,21 @@ export default function HomeScreen() {
 
           <TouchableOpacity style={[styles.gridCard, { backgroundColor: cardBgColor }]} onPress={() => router.push("/edit")} activeOpacity={0.8}>
             <View style={styles.gridTop}>
-              <Ionicons name="restaurant" size={24} color="#FF7A41" />
-              <View style={[styles.gridBadge, { backgroundColor: '#FF7A4115' }]}><Text style={[styles.gridBadgeText, { color: '#FF7A41' }]}>{dishCount}</Text></View>
+              <Ionicons name="restaurant" size={24} color={accent} />
+              <View style={[styles.gridBadge, { backgroundColor: BRAND + '15' }]}><Text style={[styles.gridBadgeText, { color: PRIMARY }]}>{dishCount}</Text></View>
             </View>
             <Text style={[styles.gridTitle, { color: textColor }]}>Garde-manger</Text>
             <Text style={[styles.gridDesc, { color: subTextColor }]}>{catCount} catégorie(s)</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <RecipeDetail
+        recipe={openRecipe}
+        onClose={() => setOpenRecipe(null)}
+        // La modification d'une recette se fait depuis l'onglet Plats.
+        onEdit={() => { setOpenRecipe(null); router.push('/edit'); }}
+      />
     </SafeAreaView>
   );
 }
@@ -131,7 +165,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingVertical: 20 },
-  eyebrow: { fontSize: 13, color: '#FF7A41', fontWeight: '700' },
+  eyebrow: { fontSize: 13, color: PRIMARY, fontWeight: '700' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   profileBadge: { backgroundColor: '#1e293b', width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   profileInitials: { color: '#fff', fontWeight: '800' },
@@ -139,22 +173,23 @@ const styles = StyleSheet.create({
   syncBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 14 },
   syncBannerText: { flex: 1, color: '#b45309', fontSize: 13, fontWeight: '700' },
 
-  tonightCard: { backgroundColor: '#FF7A41', borderRadius: 26, padding: 22, marginBottom: 14 },
+  tonightCard: { backgroundColor: PRIMARY, borderRadius: 26, padding: 22, marginBottom: 14 },
+  tonightEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tonightEyebrow: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 12, letterSpacing: 1 },
   tonightMeal: { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 6 },
   tonightActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   tonightBtnGhost: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
   tonightBtnGhostText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   tonightBtnSolid: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
-  tonightBtnSolidText: { color: '#FF7A41', fontWeight: '700', fontSize: 13 },
+  tonightBtnSolidText: { color: PRIMARY, fontWeight: '700', fontSize: 13 },
 
   weekCard: { flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: 22, padding: 18, marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   weekRing: { width: 54, height: 54, borderRadius: 27, justifyContent: 'center', alignItems: 'center' },
-  weekRingText: { fontSize: 16, fontWeight: '900', color: '#FF7A41' },
+  weekRingText: { fontSize: 16, fontWeight: '900', color: PRIMARY },
   weekTitle: { fontSize: 16, fontWeight: '800' },
   weekSub: { fontSize: 13, fontWeight: '500', marginTop: 1, marginBottom: 8 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#FF7A41', borderRadius: 4 },
+  progressFill: { height: '100%', backgroundColor: PRIMARY, borderRadius: 4 },
 
   gridContainer: { flexDirection: 'row', gap: 14 },
   gridCard: { flex: 1, borderRadius: 22, padding: 18, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },

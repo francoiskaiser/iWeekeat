@@ -9,10 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { normalizeCode } from '@/utils/groups';
+import { PRIMARY, DANGER } from '@/constants/theme';
 
 type Mode = 'create' | 'join';
 
 export default function GroupScreen() {
+  const { accent } = useThemeColors();
   const { displayName, groupId, groupName: currentGroupName, createGroup, joinGroup, signOut } = useAuth();
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
   const params = useLocalSearchParams<{ change?: string }>();
@@ -42,8 +44,8 @@ export default function GroupScreen() {
       if (mode === 'create') {
         const created = await createGroup(groupName);
         Alert.alert(
-          'Foyer cree',
-          `Votre code de partage est ${created}.\n\nCommuniquez-le a votre conjoint pour qu'il rejoigne le meme foyer. Vous le retrouverez dans Parametres.`,
+          'Foyer créé',
+          `Ton code de partage est ${created}.\n\nCommunique-le à ton conjoint pour qu'il rejoigne le même foyer. Tu le retrouveras dans Paramètres.`,
         );
       } else {
         await joinGroup(code);
@@ -55,7 +57,7 @@ export default function GroupScreen() {
       const raw = (e as { code?: string; message?: string });
       setError(
         raw.code === 'permission-denied'
-          ? "Acces refuse par Firestore. Les regles de securite du projet Firebase n'ont pas encore ete publiees."
+          ? "Accès refusé par Firestore. Les règles de sécurité du projet Firebase n'ont pas encore été publiées."
           : raw.message ?? 'Une erreur est survenue.',
       );
     } finally {
@@ -72,8 +74,8 @@ export default function GroupScreen() {
 
           {changing && (
             <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={20} color="#FF7A41" />
-              <Text style={styles.backLinkText}>Retour</Text>
+              <Ionicons name="chevron-back" size={20} color={accent} />
+              <Text style={[styles.backLinkText, { color: accent }]}>Retour</Text>
             </TouchableOpacity>
           )}
 
@@ -82,12 +84,12 @@ export default function GroupScreen() {
               <Ionicons name="people" size={44} color="#fff" />
             </View>
             <Text style={[styles.title, { color: text }]}>
-              {changing ? 'Changer de foyer' : 'Votre foyer'}
+              {changing ? 'Changer de foyer' : 'Ton foyer'}
             </Text>
             <Text style={[styles.subtitle, { color: subText }]}>
               {changing
-                ? `Vous faites actuellement partie de « ${currentGroupName ?? 'votre foyer'} ». En rejoindre un autre vous en fera sortir.`
-                : "Les membres d'un meme foyer partagent leurs plats, leur semainier et leur liste de courses."}
+                ? `Tu fais actuellement partie de « ${currentGroupName ?? 'ton foyer'} ». En rejoindre un autre t'en fera sortir.`
+                : "Les membres d'un même foyer partagent leurs plats, leur semainier et leur liste de courses."}
             </Text>
           </View>
 
@@ -106,7 +108,7 @@ export default function GroupScreen() {
               style={[styles.tab, mode === 'create' && styles.tabActive]}
               onPress={() => switchMode('create')}
             >
-              <Text style={[styles.tabText, { color: mode === 'create' ? '#fff' : subText }]}>Creer</Text>
+              <Text style={[styles.tabText, { color: mode === 'create' ? '#fff' : subText }]}>Créer</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, mode === 'join' && styles.tabActive]}
@@ -158,7 +160,7 @@ export default function GroupScreen() {
 
           {error && (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color="#ef4444" />
+              <Ionicons name="alert-circle" size={18} color={DANGER} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -170,12 +172,12 @@ export default function GroupScreen() {
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.mainButtonText}>{mode === 'create' ? 'Creer mon foyer' : 'Rejoindre le foyer'}</Text>}
+              : <Text style={styles.mainButtonText}>{mode === 'create' ? 'Créer mon foyer' : 'Rejoindre le foyer'}</Text>}
           </TouchableOpacity>
 
           {!changing && (
             <TouchableOpacity style={styles.signOut} onPress={signOut}>
-              <Text style={[styles.signOutText, { color: subText }]}>Se deconnecter</Text>
+              <Text style={[styles.signOutText, { color: subText }]}>Se déconnecter</Text>
             </TouchableOpacity>
           )}
 
@@ -189,17 +191,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 40 },
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8 },
-  backLinkText: { color: '#FF7A41', fontSize: 15, fontWeight: '700' },
+  backLinkText: { color: PRIMARY, fontSize: 15, fontWeight: '700' },
   warnBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 20 },
   warnText: { flex: 1, color: '#b45309', fontSize: 13, lineHeight: 18, fontWeight: '600' },
   header: { alignItems: 'center', marginBottom: 30 },
-  iconWrapper: { width: 84, height: 84, borderRadius: 28, backgroundColor: '#FF7A41', justifyContent: 'center', alignItems: 'center', marginBottom: 18, elevation: 6, shadowColor: '#FF7A41', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+  iconWrapper: { width: 84, height: 84, borderRadius: 28, backgroundColor: PRIMARY, justifyContent: 'center', alignItems: 'center', marginBottom: 18, elevation: 6, shadowColor: PRIMARY, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
   subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 21, marginTop: 8 },
 
   tabs: { flexDirection: 'row', borderRadius: 16, padding: 5, gap: 5, marginBottom: 24, borderWidth: 1 },
   tab: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  tabActive: { backgroundColor: '#FF7A41' },
+  tabActive: { backgroundColor: PRIMARY },
   tabText: { fontSize: 15, fontWeight: '800' },
 
   label: { fontSize: 14, fontWeight: '800', marginBottom: 8, marginLeft: 4 },
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
 
   errorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 18 },
   errorText: { flex: 1, color: '#b91c1c', fontSize: 14, lineHeight: 19, fontWeight: '600' },
-  mainButton: { backgroundColor: '#FF7A41', borderRadius: 16, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 28, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
+  mainButton: { backgroundColor: PRIMARY, borderRadius: 16, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 28, elevation: 4, shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   mainButtonDisabled: { opacity: 0.5, elevation: 0 },
   mainButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 

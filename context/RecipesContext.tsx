@@ -51,7 +51,7 @@ const RecipesContext = createContext<RecipesContextValue | null>(null);
 
 function networkMessage(error: unknown): string {
   const code = (error as { code?: string })?.code ?? '';
-  if (code === 'permission-denied') return "Action refusee. Verifiez que l'application est a jour.";
+  if (code === 'permission-denied') return "Action refusée. Vérifie que l'application est à jour.";
   return 'Impossible de joindre le serveur (hors ligne ?)';
 }
 
@@ -182,7 +182,7 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
   }, [uid, stats, myRatings]);
 
   const publish = useCallback(async (draft: RecipeDraft) => {
-    if (!uid) throw new Error('Vous devez etre connecte.');
+    if (!uid) throw new Error('Tu dois être connecté.');
     try {
       const created = await publishRecipe(uid, displayName, draft);
       setCommunity((prev) => [created, ...prev]);

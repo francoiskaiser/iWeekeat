@@ -8,14 +8,17 @@ import { DayPlan } from "@/types";
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { buildWeekMenuText, shareText } from "@/utils/share";
 import { WeekDay, addDays, buildWeek, getMonday, getWeekdayIndex, startOfDay, toDateKey } from "@/utils/date";
+import { BRAND, PRIMARY, SUCCESS, DANGER } from '@/constants/theme';
+import { WeekTemplates, TemplateWeek } from "@/components/WeekTemplates";
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "default": "#FF7A41", "viande": "#FF7A41", "végétarien": "#10B981", "poisson": "#0EA5E9",
+  "default": PRIMARY, "viande": PRIMARY, "végétarien": SUCCESS, "poisson": "#0EA5E9",
 };
 
 type DayInfo = { meal: string | null; catName: string | null; color: string };
 
 export default function PlannerScreen() {
+  const { accent, successText } = useThemeColors();
   const {
     isDarkMode,
     background: bgColor,
@@ -38,9 +41,10 @@ export default function PlannerScreen() {
   const dishPickerRef = useRef<NativePickerRef>(null);
 
   const [confirmModal, setConfirmModal] = useState({
-    visible: false, title: "", message: "", icon: "alert-circle-outline", confirmText: "Confirmer", confirmColor: "#FF7A41", onConfirm: () => {},
+    visible: false, title: "", message: "", icon: "alert-circle-outline", confirmText: "Confirmer", confirmColor: PRIMARY, onConfirm: () => {},
   });
   const closeConfirmModal = () => setConfirmModal(prev => ({ ...prev, visible: false }));
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   // --- Semaine en cours (jours restants uniquement) & semaine suivante (à partir de vendredi) ---
   const today = useMemo(() => new Date(), []);
@@ -55,6 +59,20 @@ export default function PlannerScreen() {
   );
   const showNextWeek = todayWeekdayIndex >= 4; // Vendredi, samedi, dimanche
   const nextWeek = useMemo(() => buildWeek(addDays(getMonday(today), 7)), [today]);
+
+  // Semaines proposees dans les semaines types : celle en cours (jours a venir
+  // seulement) et, en fin de semaine, la suivante.
+  const templateWeeks = useMemo<TemplateWeek[]>(() => {
+    const weeks: TemplateWeek[] = [{
+      label: 'Cette semaine',
+      dateKeys: thisWeek.map((d) => d.dateKey),
+      allowedDateKeys: visibleThisWeek.map((d) => d.dateKey),
+    }];
+    if (showNextWeek) {
+      weeks.push({ label: 'Semaine prochaine', dateKeys: nextWeek.map((d) => d.dateKey), allowedDateKeys: nextWeek.map((d) => d.dateKey) });
+    }
+    return weeks;
+  }, [thisWeek, visibleThisWeek, nextWeek, showNextWeek]);
 
   const categoryOptions = useMemo(() => data.categories.map((c) => ({ label: c.name, value: c.id })), [data.categories]);
   const draftDishes = useMemo(() => data.dishes.filter((d) => d.categoryId === draftCategoryId), [data.dishes, draftCategoryId]);
@@ -98,7 +116,7 @@ export default function PlannerScreen() {
   };
 
   const validateDay = () => {
-    if (!expandedDay || !draftCategoryId || !draftDishId) { Alert.alert("Sélection incomplète", "Choisissez une catégorie et un plat."); return; }
+    if (!expandedDay || !draftCategoryId || !draftDishId) { Alert.alert("Sélection incomplète", "Choisis une catégorie et un plat."); return; }
     addDayPlan(expandedDay, { categoryId: draftCategoryId, dishId: draftDishId }, editingIndex ?? undefined);
     closeEditor();
   };
@@ -111,15 +129,15 @@ export default function PlannerScreen() {
   };
 
   const handleShare = () => {
-    if (plannedThisWeek === 0) { Alert.alert("Semaine vide", "Planifiez au moins un repas avant de partager le menu."); return; }
+    if (plannedThisWeek === 0) { Alert.alert("Semaine vide", "Planifie au moins un repas avant de partager le menu."); return; }
     shareText(buildWeekMenuText(thisWeek, data));
   };
   const handleRandomize = (days: WeekDay[]) => {
-    if (data.dishes.length === 0) { Alert.alert("Pas de plats", "Ajoutez d'abord quelques plats dans le Garde-manger !"); return; }
-    setConfirmModal({ visible: true, title: "Menu Aléatoire", message: "Voulez-vous remplir automatiquement ces jours avec des plats choisis au hasard ?", icon: "dice", confirmText: "Générer", confirmColor: "#FF7A41", onConfirm: () => { randomizeWeek(days.map((d) => d.dateKey)); closeConfirmModal(); } });
+    if (data.dishes.length === 0) { Alert.alert("Pas de plats", "Ajoute d'abord quelques plats dans l'onglet Plats."); return; }
+    setConfirmModal({ visible: true, title: "Menu aléatoire", message: "Remplir automatiquement ces jours avec des plats choisis au hasard ?", icon: "dice", confirmText: "Générer", confirmColor: PRIMARY, onConfirm: () => { randomizeWeek(days.map((d) => d.dateKey)); closeConfirmModal(); } });
   };
   const handleReset = (days: WeekDay[]) => {
-    setConfirmModal({ visible: true, title: "Réinitialiser", message: "Voulez-vous vraiment effacer les repas planifiés sur cette période ?", icon: "trash-outline", confirmText: "Tout effacer", confirmColor: "#ef4444", onConfirm: () => { resetWeekPlan(days.map((d) => d.dateKey)); closeConfirmModal(); } });
+    setConfirmModal({ visible: true, title: "Réinitialiser", message: "Effacer les repas planifiés sur cette période ?", icon: "trash-outline", confirmText: "Tout effacer", confirmColor: DANGER, onConfirm: () => { resetWeekPlan(days.map((d) => d.dateKey)); closeConfirmModal(); } });
   };
 
   const getMealInfo = (plan: DayPlan): DayInfo => {
@@ -137,7 +155,7 @@ export default function PlannerScreen() {
     const meals = data.weekPlan[day.dateKey] ?? [];
     const isToday = day.dateKey === todayKey;
     const isExpanded = expandedDay === day.dateKey;
-    const accent = isToday ? '#FF7A41' : borderColor;
+    const accent = isToday ? PRIMARY : borderColor;
 
     return (
       <View key={day.dateKey} style={styles.cardWrapper}>
@@ -147,11 +165,11 @@ export default function PlannerScreen() {
               isToday && styles.dayCardToday, isExpanded && styles.cardExpandedActive]}
           >
             <View style={styles.dayCardHead}>
-              <View style={[styles.dateBadge, { backgroundColor: isToday ? '#FF7A4115' : (isDarkMode ? '#1e293b' : '#f8fafc') }]}>
-                <Text style={[styles.dateShort, { color: isToday ? '#FF7A41' : '#94a3b8' }]}>{day.short.toUpperCase()}</Text>
-                <Text style={[styles.dateNum, { color: isToday ? '#FF7A41' : subTextColor }]}>{day.date.getDate()}</Text>
+              <View style={[styles.dateBadge, { backgroundColor: isToday ? BRAND + '15' : (isDarkMode ? '#1e293b' : '#f8fafc') }]}>
+                <Text style={[styles.dateShort, { color: isToday ? PRIMARY : '#94a3b8' }]}>{day.short.toUpperCase()}</Text>
+                <Text style={[styles.dateNum, { color: isToday ? PRIMARY : subTextColor }]}>{day.date.getDate()}</Text>
               </View>
-              <Text style={[styles.dayMeta, { color: isToday ? '#FF7A41' : subTextColor }]}>
+              <Text style={[styles.dayMeta, { color: isToday ? PRIMARY : subTextColor }]}>
                 {isToday ? "AUJOURD'HUI" : day.label}
               </Text>
             </View>
@@ -183,13 +201,13 @@ export default function PlannerScreen() {
               onPress={() => openDayForAdd(day.dateKey)}
               activeOpacity={0.7}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#10B981" />
-              <Text style={styles.addMoreText}>Ajouter un autre repas</Text>
+              <Ionicons name="add-circle-outline" size={18} color={successText} />
+              <Text style={[styles.addMoreText, { color: successText }]}>Ajouter un autre repas</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity activeOpacity={0.7} onPress={() => openDayForAdd(day.dateKey)}
-            style={[styles.emptyCard, { backgroundColor: dashBg, borderColor: isToday ? '#FF7A41' : dashBorder }, isExpanded && styles.cardExpandedActive]}>
+            style={[styles.emptyCard, { backgroundColor: dashBg, borderColor: isToday ? PRIMARY : dashBorder }, isExpanded && styles.cardExpandedActive]}>
             <View style={[styles.dateBadge, { backgroundColor: cardBgColor, borderWidth: 1, borderColor }]}>
               <Text style={[styles.dateShort, { color: '#94a3b8' }]}>{day.short.toUpperCase()}</Text>
               <Text style={[styles.dateNum, { color: '#94a3b8' }]}>{day.date.getDate()}</Text>
@@ -202,7 +220,7 @@ export default function PlannerScreen() {
         {isExpanded && (
           <View style={[styles.editorContainer, { backgroundColor: cardBgColor, borderColor: accent }]}>
             <NativePicker label="Catégorie" selectedValue={draftCategoryId} onValueChange={handleCategoryChange} options={categoryOptions as PickerOption[]} placeholder="Choisir une catégorie" />
-            <NativePicker ref={dishPickerRef} label="Plat" selectedValue={draftDishId} onValueChange={setDraftDishId} options={dishOptions as PickerOption[]} placeholder={draftCategoryId ? "Choisir un plat" : "Sélectionnez d'abord une catégorie"} enabled={!!draftCategoryId && dishOptions.length > 0} />
+            <NativePicker ref={dishPickerRef} label="Plat" selectedValue={draftDishId} onValueChange={setDraftDishId} options={dishOptions as PickerOption[]} placeholder={draftCategoryId ? "Choisir un plat" : "Sélectionne d'abord une catégorie"} enabled={!!draftCategoryId && dishOptions.length > 0} />
             <View style={styles.editorActions}>
               <TouchableOpacity style={styles.btnValidate} onPress={validateDay}>
                 <Text style={styles.btnValidateText}>
@@ -211,7 +229,7 @@ export default function PlannerScreen() {
               </TouchableOpacity>
               {meals.length > 0 && (
                 <TouchableOpacity style={styles.btnClear} onPress={removeCurrentMeal}>
-                  <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                  <Ionicons name="trash-outline" size={20} color={DANGER} />
                 </TouchableOpacity>
               )}
             </View>
@@ -229,10 +247,13 @@ export default function PlannerScreen() {
           <Text style={[styles.title, { color: textColor }]}>Semainier</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.diceBadge} onPress={handleShare} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.diceBadge} onPress={() => setTemplatesOpen(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Semaines types">
+            <Ionicons name="bookmarks-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.diceBadge} onPress={handleShare} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Partager le menu de la semaine">
             <Ionicons name="share-social-outline" size={22} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.diceBadge} onPress={() => handleRandomize(visibleThisWeek)} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.diceBadge} onPress={() => handleRandomize(visibleThisWeek)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Menu aléatoire pour cette semaine">
             <Ionicons name="dice" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -244,7 +265,7 @@ export default function PlannerScreen() {
         <View style={[styles.progressCard, { backgroundColor: cardBgColor }]}>
           <View style={styles.progressRow}>
             <Text style={[styles.progressTitle, { color: textColor }]}>{plannedThisWeek} jour(s) sur {visibleThisWeek.length}</Text>
-            <Text style={styles.progressHint}>{plannedThisWeek >= visibleThisWeek.length ? "Complet 🎉" : `${visibleThisWeek.length - plannedThisWeek} à compléter`}</Text>
+            <Text style={[styles.progressHint, { color: accent }]}>{plannedThisWeek >= visibleThisWeek.length ? "Complet" : `${visibleThisWeek.length - plannedThisWeek} à compléter`}</Text>
           </View>
           <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
             <View style={[styles.progressFill, { width: `${Math.round((plannedThisWeek / visibleThisWeek.length) * 100)}%` }]} />
@@ -255,7 +276,7 @@ export default function PlannerScreen() {
 
         {plannedThisWeek > 0 && (
           <TouchableOpacity style={[styles.resetButton, { backgroundColor: cardBgColor }]} onPress={() => handleReset(visibleThisWeek)}>
-            <Ionicons name="refresh-outline" size={20} color="#ef4444" />
+            <Ionicons name="refresh-outline" size={20} color={DANGER} />
             <Text style={styles.resetButtonText}>Réinitialiser cette semaine</Text>
           </TouchableOpacity>
         )}
@@ -268,7 +289,7 @@ export default function PlannerScreen() {
                 <Text style={[styles.nextWeekSubtitle, { color: subTextColor }]}>Prépare déjà tes repas en avance</Text>
               </View>
               <View style={styles.headerActions}>
-                <TouchableOpacity style={styles.sectionDiceBadge} onPress={() => { if (plannedNextWeek === 0) { Alert.alert("Semaine vide", "Planifiez au moins un repas avant de partager le menu."); return; } shareText(buildWeekMenuText(nextWeek, data)); }} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.sectionDiceBadge} onPress={() => { if (plannedNextWeek === 0) { Alert.alert("Semaine vide", "Planifie au moins un repas avant de partager le menu."); return; } shareText(buildWeekMenuText(nextWeek, data)); }} activeOpacity={0.8}>
                   <Ionicons name="share-social-outline" size={18} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.sectionDiceBadge} onPress={() => handleRandomize(nextWeek)} activeOpacity={0.8}>
@@ -281,13 +302,15 @@ export default function PlannerScreen() {
 
             {plannedNextWeek > 0 && (
               <TouchableOpacity style={[styles.resetButton, { backgroundColor: cardBgColor }]} onPress={() => handleReset(nextWeek)}>
-                <Ionicons name="refresh-outline" size={20} color="#ef4444" />
+                <Ionicons name="refresh-outline" size={20} color={DANGER} />
                 <Text style={styles.resetButtonText}>Réinitialiser la semaine prochaine</Text>
               </TouchableOpacity>
             )}
           </>
         )}
       </ScrollView>
+
+      <WeekTemplates visible={templatesOpen} onClose={() => setTemplatesOpen(false)} weeks={templateWeeks} />
 
       <Modal visible={confirmModal.visible} transparent animationType="fade" onRequestClose={closeConfirmModal}>
         <View style={styles.modalOverlay}>
@@ -318,15 +341,15 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   welcomeText: { fontSize: 15, color: '#64748b', fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
-  diceBadge: { backgroundColor: '#FF7A41', padding: 11, borderRadius: 15, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  diceBadge: { backgroundColor: PRIMARY, padding: 11, borderRadius: 15, elevation: 4, shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 110 },
 
   progressCard: { borderRadius: 18, padding: 16, marginBottom: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   progressTitle: { fontSize: 15, fontWeight: '800' },
-  progressHint: { fontSize: 13, fontWeight: '700', color: '#FF7A41' },
+  progressHint: { fontSize: 13, fontWeight: '700', color: PRIMARY },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#FF7A41', borderRadius: 4 },
+  progressFill: { height: '100%', backgroundColor: PRIMARY, borderRadius: 4 },
 
   cardWrapper: { marginBottom: 12 },
   dayCard: { borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
@@ -335,8 +358,8 @@ const styles = StyleSheet.create({
   mealRowActive: { opacity: 0.6 },
   mealCat: { fontSize: 11, fontWeight: '600', marginTop: 1 },
   addMoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderTopWidth: 1 },
-  addMoreText: { color: '#10B981', fontSize: 13, fontWeight: '700' },
-  dayCardToday: { shadowColor: '#FF7A41', shadowOpacity: 0.18, shadowRadius: 14, elevation: 5 },
+  addMoreText: { color: SUCCESS, fontSize: 13, fontWeight: '700' },
+  dayCardToday: { shadowColor: PRIMARY, shadowOpacity: 0.18, shadowRadius: 14, elevation: 5 },
   cardExpandedActive: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 18, padding: 14, borderWidth: 2, borderStyle: 'dashed' },
   dateBadge: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
@@ -347,21 +370,21 @@ const styles = StyleSheet.create({
   dayMeta: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   mealName: { fontSize: 15, fontWeight: '800' },
   emptyText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#94a3b8' },
-  addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FF7A41', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center' },
 
   editorContainer: { padding: 18, paddingTop: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, borderWidth: 1, borderTopWidth: 0, marginTop: -2 },
   editorActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, gap: 10 },
-  btnValidate: { flex: 1, backgroundColor: '#10B981', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  btnValidate: { flex: 1, backgroundColor: SUCCESS, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
   btnValidateText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   btnClear: { backgroundColor: '#fef2f2', padding: 14, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
 
   resetButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, marginTop: 6, marginBottom: 6, gap: 8, borderRadius: 18, borderWidth: 1, borderColor: '#fecaca' },
-  resetButtonText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  resetButtonText: { color: DANGER, fontWeight: '600', fontSize: 15 },
 
   nextWeekHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 14, paddingHorizontal: 2 },
   nextWeekTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
   nextWeekSubtitle: { fontSize: 13, fontWeight: '500', marginTop: 2 },
-  sectionDiceBadge: { backgroundColor: '#FF7A41', padding: 9, borderRadius: 13 },
+  sectionDiceBadge: { backgroundColor: PRIMARY, padding: 9, borderRadius: 13 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalAlertCard: { borderRadius: 28, padding: 25, width: '100%', maxWidth: 340, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },

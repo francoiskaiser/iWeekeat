@@ -1,4 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
+import { palette } from '@/constants/theme';
 
 export function useThemeColors() {
   const { isDarkMode } = useTheme();
@@ -10,5 +11,9 @@ export function useThemeColors() {
     card: isDarkMode ? '#334155' : '#fff',
     border: isDarkMode ? '#475569' : '#f1f5f9',
     track: isDarkMode ? '#475569' : '#f1f5f9',
+    // Couleurs d'accent lisibles sur le fond du theme (voir constants/theme.ts).
+    accent: palette(isDarkMode).accentText,
+    successText: palette(isDarkMode).successText,
+    placeholder: palette(isDarkMode).placeholder,
   };
 }

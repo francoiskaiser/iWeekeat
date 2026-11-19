@@ -8,8 +8,10 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAuth } from '@/context/AuthContext';
 import { useRecipes } from '@/context/RecipesContext';
 import { CommunityRules } from '@/components/recipes/CommunityRules';
+import { PRIMARY, DANGER } from '@/constants/theme';
 
 export default function SettingsScreen() {
+  const { accent } = useThemeColors();
   const { toggleTheme } = useTheme();
   const { isDarkMode, text: textColor, subText, background, card, border } = useThemeColors();
   const { displayName, user, groupId, groupName, members, signOut, leaveGroup } = useAuth();
@@ -39,7 +41,7 @@ export default function SettingsScreen() {
   const confirmLeave = () => {
     Alert.alert(
       'Quitter le foyer',
-      "Les plats, le semainier, les courses et l'agenda appartiennent au foyer : ils y resteront. Vous pourrez ensuite en creer un ou en rejoindre un autre.",
+      "Les plats, le semainier, les courses et l'agenda appartiennent au foyer : ils y resteront. Tu pourras ensuite en créer un ou en rejoindre un autre.",
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Quitter', style: 'destructive', onPress: () => { leaveGroup(); } },
@@ -48,29 +50,29 @@ export default function SettingsScreen() {
   };
 
   const confirmSignOut = () => {
-    Alert.alert('Se deconnecter', 'Vos donnees resteront disponibles apres reconnexion.', [
+    Alert.alert('Se déconnecter', 'Tes données resteront disponibles après reconnexion.', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Se deconnecter', style: 'destructive', onPress: () => { signOut(); } },
+      { text: 'Se déconnecter', style: 'destructive', onPress: () => { signOut(); } },
     ]);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={[styles.title, { color: textColor }]}>Parametres</Text>
+        <Text style={[styles.title, { color: textColor }]}>Paramètres</Text>
 
         <Text style={[styles.sectionLabel, { color: subText }]}>MON FOYER</Text>
         <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
           <Text style={[styles.groupName, { color: textColor }]}>{groupName ?? 'Mon foyer'}</Text>
           <Text style={[styles.groupMeta, { color: subText }]}>
             {memberNames.length
-              ? memberNames.map(([uid, name]) => (uid === user?.uid ? `${name} (vous)` : name)).join(' · ')
-              : 'Chargement...'}
+              ? memberNames.map(([uid, name]) => (uid === user?.uid ? `${name} (toi)` : name)).join(' · ')
+              : 'Chargement…'}
           </Text>
 
           <Text style={[styles.codeLabel, { color: subText }]}>Code de partage</Text>
           <View style={[styles.codeBox, { borderColor: border }]}>
-            <Text style={styles.codeText}>{groupId}</Text>
+            <Text style={[styles.codeText, { color: accent }]}>{groupId}</Text>
           </View>
           <Text style={[styles.codeHelp, { color: subText }]}>
             Transmettez ce code pour qu&apos;un proche rejoigne le foyer et partage
@@ -88,7 +90,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/group?change=1')}
           activeOpacity={0.7}
         >
-          <Ionicons name="swap-horizontal" size={20} color="#FF7A41" />
+          <Ionicons name="swap-horizontal" size={20} color={accent} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.actionTitle, { color: textColor }]}>Changer de foyer</Text>
             <Text style={[styles.actionSub, { color: subText }]}>
@@ -99,7 +101,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.leaveBtn} onPress={confirmLeave}>
-          <Ionicons name="exit-outline" size={18} color="#ef4444" />
+          <Ionicons name="exit-outline" size={18} color={DANGER} />
           <Text style={styles.leaveText}>Quitter ce foyer</Text>
         </TouchableOpacity>
 
@@ -116,7 +118,7 @@ export default function SettingsScreen() {
             <View key={a.uid} style={[styles.row, { marginTop: 8 }]}>
               <Text style={[styles.rowLabel, { color: textColor }]}>{a.name}</Text>
               <TouchableOpacity onPress={() => confirmUnblock(a.uid, a.name)}>
-                <Text style={styles.unblockText}>Débloquer</Text>
+                <Text style={[styles.unblockText, { color: accent }]}>Débloquer</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -135,8 +137,8 @@ export default function SettingsScreen() {
           <Text style={[styles.rowLabel, { color: textColor }]}>{displayName}</Text>
           <Text style={[styles.groupMeta, { color: subText }]}>{user?.email}</Text>
           <TouchableOpacity style={styles.signOutBtn} onPress={confirmSignOut}>
-            <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-            <Text style={styles.signOutText}>Se deconnecter</Text>
+            <Ionicons name="log-out-outline" size={18} color={DANGER} />
+            <Text style={styles.signOutText}>Se déconnecter</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -158,22 +160,22 @@ const styles = StyleSheet.create({
 
   codeLabel: { fontSize: 12, fontWeight: '700', marginTop: 18, marginBottom: 6 },
   codeBox: { borderWidth: 2, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  codeText: { fontSize: 28, fontWeight: '900', letterSpacing: 6, color: '#FF7A41' },
+  codeText: { fontSize: 28, fontWeight: '900', letterSpacing: 6, color: PRIMARY },
   codeHelp: { fontSize: 13, lineHeight: 19, marginTop: 10 },
 
-  shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FF7A41', borderRadius: 14, paddingVertical: 13, marginTop: 14 },
+  shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: PRIMARY, borderRadius: 14, paddingVertical: 13, marginTop: 14 },
   shareBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, padding: 16, marginTop: -12, marginBottom: 10 },
   actionTitle: { fontSize: 15, fontWeight: '800' },
   actionSub: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   leaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 12, marginBottom: 24, borderWidth: 1, borderColor: '#fecaca' },
-  leaveText: { color: '#ef4444', fontWeight: '700', fontSize: 14 },
+  leaveText: { color: DANGER, fontWeight: '700', fontSize: 14 },
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { fontSize: 16, fontWeight: '600' },
-  unblockText: { color: '#FF7A41', fontWeight: '800', fontSize: 14 },
+  unblockText: { color: PRIMARY, fontWeight: '800', fontSize: 14 },
 
   signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 13, marginTop: 16, borderWidth: 1, borderColor: '#fecaca' },
-  signOutText: { color: '#ef4444', fontWeight: '700', fontSize: 15 },
+  signOutText: { color: DANGER, fontWeight: '700', fontSize: 15 },
 });
