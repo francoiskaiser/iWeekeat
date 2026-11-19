@@ -1,0 +1,15 @@
+{
+  "name": "iWeekeat",
+  "short_name": "iWeekeat",
+  "description": "Planifiez les repas de la semaine en famille et générez la liste de courses.",
+  "lang": "fr",
+  "start_url": "/iWeekeat/",
+  "scope": "/iWeekeat/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF7A41",
+  "icons": [
+    { "src": "/iWeekeat/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/iWeekeat/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

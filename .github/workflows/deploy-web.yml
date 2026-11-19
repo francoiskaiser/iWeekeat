@@ -1,0 +1,61 @@
+# Publie la version web d'iWeekeat sur GitHub Pages a chaque modification de
+# la branche main : https://francoiskaiser.github.io/iWeekeat/
+name: Déployer la version web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul deploiement a la fois ; le plus recent l'emporte.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Construire la version web
+        run: npx expo export --platform web --output-dir dist
+        env:
+          CI: 1
+
+      - name: Préparer pour GitHub Pages
+        run: |
+          # Application d'une seule page : toute adresse inconnue renvoie l'app.
+          cp dist/index.html dist/404.html
+          # Pas de traitement Jekyll (il ignorerait le dossier _expo).
+          touch dist/.nojekyll
+          # Installation sur l'ecran d'accueil du telephone.
+          for f in dist/index.html dist/404.html; do
+            sed -i 's#</head>#<link rel="manifest" href="/iWeekeat/manifest.json" /><link rel="apple-touch-icon" href="/iWeekeat/apple-touch-icon.png" /><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-title" content="iWeekeat" /></head>#' "$f"
+          done
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
