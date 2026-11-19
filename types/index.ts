@@ -16,6 +16,53 @@ export interface Dish {
   id: string;
   categoryId: string;
   name: string;
+  /** Recette du catalogue dont ce plat a ete ajoute, pour en afficher les etapes. */
+  recipeId?: string;
+}
+
+export type RecipeCategory =
+  | "classiques"
+  | "pates"
+  | "viande"
+  | "poisson"
+  | "vegetarien"
+  | "soupes"
+  | "riz-cereales"
+  | "rapides";
+
+export interface RecipeIngredient {
+  name: string;
+  /** Texte libre : "200 g", "2 gousses", "1 pincee"... */
+  quantity?: string;
+}
+
+/**
+ * Recette du catalogue : fournie avec l'app (`default`) ou publiee par un
+ * utilisateur (`community`). A ne pas confondre avec un plat du foyer
+ * (`Dish`), qui n'a que des noms d'ingredients et sert au semainier.
+ */
+export interface Recipe {
+  id: string;
+  title: string;
+  category: RecipeCategory;
+  servings: number;
+  /** Temps total, preparation et cuisson comprises. */
+  minutes: number;
+  ingredients: RecipeIngredient[];
+  steps: string[];
+  source: "default" | "community";
+  authorUid?: string;
+  authorName?: string;
+  /** Millisecondes depuis l'epoque. */
+  createdAt?: number;
+  /** Masquee apres plusieurs signalements, en attente de verification. */
+  hidden?: boolean;
+}
+
+/** Notes cumulees d'une recette. */
+export interface RecipeStats {
+  count: number;
+  sum: number;
 }
 
 export interface Ingredient {
