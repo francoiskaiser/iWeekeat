@@ -38,7 +38,8 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/iWeekeat"
     },
     "extra": {
       "router": {},
@@ -53,6 +54,15 @@
         "messagingSenderId": "633227445102",
         "appId": "1:633227445102:web:909afa4a6347ec1b6c777f"
       }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon.png",
+      "name": "iWeekeat",
+      "shortName": "iWeekeat",
+      "themeColor": "#FF7A41",
+      "backgroundColor": "#ffffff"
     }
   }
 }
