@@ -7,8 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { authErrorMessage, useAuth } from '@/context/AuthContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { PRIMARY, DANGER } from '@/constants/theme';
 
 export default function LoginScreen() {
+  const { accent, successText } = useThemeColors();
   const { signIn, signUp, resetPassword } = useAuth();
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
 
@@ -31,11 +33,11 @@ export default function LoginScreen() {
   const handleAuth = async () => {
     setNotice(null);
     if (!email.trim() || !password) {
-      setError('Renseignez votre e-mail et votre mot de passe.');
+      setError('Renseigne ton e-mail et ton mot de passe.');
       return;
     }
     if (!isLogin && !username.trim()) {
-      setError('Indiquez votre prenom.');
+      setError('Indique ton prénom.');
       return;
     }
 
@@ -54,13 +56,13 @@ export default function LoginScreen() {
   const handleForgot = async () => {
     setNotice(null);
     if (!email.trim()) {
-      setError('Saisissez votre e-mail, puis retouchez "Mot de passe oublie".');
+      setError('Saisis ton e-mail, puis touche de nouveau « Mot de passe oublié ».');
       return;
     }
     setError(null);
     try {
       await resetPassword(email);
-      setNotice('E-mail envoye : consultez votre boite mail pour choisir un nouveau mot de passe.');
+      setNotice('E-mail envoyé : consulte ta boîte mail pour choisir un nouveau mot de passe.');
     } catch (e) {
       setError(authErrorMessage(e));
     }
@@ -76,7 +78,7 @@ export default function LoginScreen() {
               <Ionicons name="restaurant" size={50} color="#fff" />
             </View>
             <Text style={[styles.title, { color: text }]}>iWeekeat</Text>
-            <Text style={[styles.subtitle, { color: subText }]}>Votre cuisine, votre organisation.</Text>
+            <Text style={[styles.subtitle, { color: subText }]}>Ta cuisine, ton organisation.</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -85,7 +87,7 @@ export default function LoginScreen() {
                 <Ionicons name="person-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { color: text }]}
-                  placeholder="Votre prenom"
+                  placeholder="Ton prénom"
                   placeholderTextColor="#94a3b8"
                   value={username}
                   onChangeText={setUsername}
@@ -121,14 +123,14 @@ export default function LoginScreen() {
 
             {error && (
               <View style={styles.errorBox}>
-                <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                <Ionicons name="alert-circle" size={18} color={DANGER} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
 
             {notice && (
               <View style={styles.noticeBox}>
-                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                <Ionicons name="checkmark-circle" size={18} color={successText} />
                 <Text style={styles.noticeText}>{notice}</Text>
               </View>
             )}
@@ -140,24 +142,24 @@ export default function LoginScreen() {
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.mainButtonText}>{isLogin ? 'Se connecter' : 'Creer mon compte'}</Text>}
+                : <Text style={styles.mainButtonText}>{isLogin ? 'Se connecter' : 'Créer mon compte'}</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.switchButton} onPress={switchMode}>
               <Text style={[styles.switchButtonText, { color: subText }]}>
-                {isLogin ? "Pas encore de compte ? S'inscrire" : 'Deja un compte ? Se connecter'}
+                {isLogin ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
               </Text>
             </TouchableOpacity>
 
             {isLogin && (
               <TouchableOpacity style={styles.forgotButton} onPress={handleForgot}>
-                <Text style={[styles.forgotText, { color: subText }]}>Mot de passe oublie ?</Text>
+                <Text style={[styles.forgotText, { color: subText }]}>Mot de passe oublié ?</Text>
               </TouchableOpacity>
             )}
           </View>
 
           <View style={[styles.hintCard, { backgroundColor: card, borderColor: border }]}>
-            <Ionicons name="people-outline" size={18} color="#FF7A41" />
+            <Ionicons name="people-outline" size={18} color={accent} />
             <Text style={[styles.hintText, { color: subText }]}>
               Apres la connexion, vous pourrez creer un foyer ou rejoindre celui de votre conjoint
               pour partager les memes plats et la meme liste de courses.
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 30, paddingVertical: 40 },
   logoContainer: { alignItems: 'center', marginBottom: 40 },
-  iconWrapper: { width: 90, height: 90, borderRadius: 30, backgroundColor: '#FF7A41', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#FF7A41', shadowOpacity: 0.4, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, marginBottom: 20 },
+  iconWrapper: { width: 90, height: 90, borderRadius: 30, backgroundColor: PRIMARY, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: PRIMARY, shadowOpacity: 0.4, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, marginBottom: 20 },
   title: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
   subtitle: { fontSize: 16, marginTop: 5 },
   formContainer: { width: '100%' },
@@ -185,7 +187,7 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, color: '#b91c1c', fontSize: 14, lineHeight: 19, fontWeight: '600' },
   noticeBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#ecfdf5', borderColor: '#a7f3d0', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 4 },
   noticeText: { flex: 1, color: '#047857', fontSize: 14, lineHeight: 19, fontWeight: '600' },
-  mainButton: { backgroundColor: '#FF7A41', borderRadius: 16, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
+  mainButton: { backgroundColor: PRIMARY, borderRadius: 16, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 4, shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   mainButtonDisabled: { opacity: 0.7 },
   mainButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   switchButton: { marginTop: 20, alignItems: 'center' },

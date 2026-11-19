@@ -7,8 +7,10 @@ import { useApp, CleanItem, ExtendedShoppingItem } from "@/context/AppContext";
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { buildShoppingListText, shareText } from "@/utils/share";
 import { getUpcomingDateKeys } from "@/utils/date";
+import { BRAND, PRIMARY, SUCCESS, DANGER } from '@/constants/theme';
 
 export default function ShoppingScreen() {
+  const { accent, successText } = useThemeColors();
   const {
     isDarkMode,
     background: bgColor,
@@ -50,7 +52,7 @@ export default function ShoppingScreen() {
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   const handleShare = () => {
-    if (data.shoppingList.length === 0) { Alert.alert("Liste vide", "Générez votre liste de courses avant de la partager."); return; }
+    if (data.shoppingList.length === 0) { Alert.alert("Liste vide", "Génère ta liste de courses avant de la partager."); return; }
     shareText(buildShoppingListText(data));
   };
 
@@ -75,7 +77,7 @@ export default function ShoppingScreen() {
   }, [upcomingKeys, data.weekPlan, data.dishes, data.ingredients]);
 
   const handleGenerate = () => {
-    if (plannedCount === 0) { Alert.alert("Semaine vide", "Planifiez au moins un repas dans l'onglet Semainier avant de générer la liste."); return; }
+    if (plannedCount === 0) { Alert.alert("Semaine vide", "Planifie au moins un repas dans l'onglet Semainier avant de générer la liste."); return; }
     generateList();
   };
   const handleAddExtra = () => { if (newExtraItem.trim() === "") return; addExtraItem(newExtraItem); setNewExtraItem(""); };
@@ -104,11 +106,11 @@ export default function ShoppingScreen() {
             <Text style={[styles.title, { color: textColor }]}>Courses</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={[styles.profileBadge, { backgroundColor: badgeBgColor }]} onPress={handleShare} activeOpacity={0.7}>
-              <Ionicons name="share-social-outline" size={22} color="#FF7A41" />
+            <TouchableOpacity style={[styles.profileBadge, { backgroundColor: badgeBgColor }]} onPress={handleShare} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Partager la liste de courses">
+              <Ionicons name="share-social-outline" size={22} color={accent} />
             </TouchableOpacity>
             <View style={[styles.profileBadge, { backgroundColor: badgeBgColor }]}>
-              <Ionicons name="basket-outline" size={22} color="#FF7A41" />
+              <Ionicons name="basket-outline" size={22} color={accent} />
             </View>
           </View>
         </View>
@@ -126,7 +128,7 @@ export default function ShoppingScreen() {
             <View style={[styles.progressCard, { backgroundColor: cardBgColor }]}>
               <View style={styles.progressRow}>
                 <Text style={[styles.progressTitle, { color: textColor }]}>{doneCount} sur {totalCount} dans le caddie</Text>
-                <Text style={styles.progressPct}>{pct}%</Text>
+                <Text style={[styles.progressPct, { color: successText }]}>{pct}%</Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
                 <View style={[styles.progressFill, { width: `${pct}%` }]} />
@@ -138,12 +140,14 @@ export default function ShoppingScreen() {
           <View style={styles.actionsRow}>
             <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate}>
               <Ionicons name="sparkles" size={18} color="#fff" />
-              <Text style={styles.generateBtnText}>Générer</Text>
+              {/* Une fois creee, la liste suit le semainier toute seule ; le bouton
+                  sert alors a forcer une mise a jour. */}
+              <Text style={styles.generateBtnText}>{data.shoppingListGenerated ? 'Actualiser' : 'Générer'}</Text>
             </TouchableOpacity>
             {showCleanBtn && (
               <TouchableOpacity style={[styles.cleanBtn, { backgroundColor: isDarkMode ? '#064e3b' : '#ecfdf5', borderColor: isDarkMode ? '#059669' : '#a7f3d0' }]} onPress={startClean}>
-                <Ionicons name="scan-outline" size={18} color="#10B981" />
-                <Text style={styles.cleanBtnText}>Placards</Text>
+                <Ionicons name="scan-outline" size={18} color={successText} />
+                <Text style={[styles.cleanBtnText, { color: successText }]}>Placards</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -152,8 +156,8 @@ export default function ShoppingScreen() {
           {foodTodo.length > 0 && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: textColor }]}>🍽️ Côté Cuisine</Text>
-                <View style={styles.counterBadge}><Text style={styles.counterText}>{foodTodo.length} à prendre</Text></View>
+                <Text style={[styles.sectionTitle, { color: textColor }]}>Côté cuisine</Text>
+                <View style={styles.counterBadge}><Text style={[styles.counterText, { color: accent }]}>{foodTodo.length} à prendre</Text></View>
               </View>
               <View style={[styles.listCard, { backgroundColor: cardBgColor, borderColor }]}>
                 {foodTodo.map((item, index) => {
@@ -203,15 +207,15 @@ export default function ShoppingScreen() {
 
           {/* CÔTÉ MAISON */}
           <View style={[styles.sectionHeader, { marginTop: 25 }]}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>🧴 Côté Maison</Text>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>Côté maison</Text>
             <View style={[styles.counterBadge, { backgroundColor: isDarkMode ? '#334155' : '#64748b15' }]}>
-              <Text style={[styles.counterText, { color: subTextColor }]}>{activeExtraItems.length} à acheter</Text>
+              <Text style={[styles.counterText, { color: accent }, { color: subTextColor }]}>{activeExtraItems.length} à acheter</Text>
             </View>
           </View>
 
           <View style={[styles.listCard, { backgroundColor: cardBgColor, borderColor }]}>
             <View style={[styles.addExtraContainer, { borderBottomColor: borderColor }]}>
-              <TextInput style={[styles.addExtraInput, { backgroundColor: inputBgColor, color: textColor }]} placeholder="Ajouter un indispensable (Ex: Savon...)" placeholderTextColor={subTextColor} value={newExtraItem} onChangeText={setNewExtraItem} onSubmitEditing={handleAddExtra} returnKeyType="done" />
+              <TextInput style={[styles.addExtraInput, { backgroundColor: inputBgColor, color: textColor }]} placeholder="Ajouter un indispensable (ex. : savon)" placeholderTextColor={subTextColor} value={newExtraItem} onChangeText={setNewExtraItem} onSubmitEditing={handleAddExtra} returnKeyType="done" />
               <TouchableOpacity style={[styles.addExtraBtn, !newExtraItem.trim() && { opacity: 0.5 }]} onPress={handleAddExtra} disabled={!newExtraItem.trim()}>
                 <Ionicons name="add" size={24} color="#fff" />
               </TouchableOpacity>
@@ -224,7 +228,7 @@ export default function ShoppingScreen() {
                   <Text style={[styles.itemName, { color: textColor }]}>{item.name}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => removeShoppingItem(item.id)} style={styles.deleteExtraBtn}>
-                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  <Ionicons name="trash-outline" size={18} color={DANGER} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -245,8 +249,8 @@ export default function ShoppingScreen() {
                         <Text style={[styles.reserveItemName, { color: textColor }]}>{name}</Text>
                         <View style={styles.reserveActions}>
                           <TouchableOpacity style={[styles.reactivateBtn, { backgroundColor: isDarkMode ? '#064e3b' : '#ecfdf5', borderColor: isDarkMode ? '#059669' : '#a7f3d0' }]} onPress={() => addExtraItem(name)}>
-                            <Ionicons name="cart-outline" size={18} color="#10B981" />
-                            <Text style={styles.reactivateBtnText}>Besoin</Text>
+                            <Ionicons name="cart-outline" size={18} color={successText} />
+                            <Text style={[styles.reactivateBtnText, { color: successText }]}>Besoin</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.forgetBtn, { backgroundColor: tagBgColor }]} onPress={() => deleteExtraByName(name)}>
                             <Ionicons name="close" size={16} color={subTextColor} />
@@ -272,32 +276,32 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   welcomeText: { fontSize: 15, color: '#64748b', fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
-  profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: '#FF7A41', shadowOpacity: 0.1, shadowRadius: 10 },
+  profileBadge: { padding: 11, borderRadius: 15, elevation: 2, shadowColor: PRIMARY, shadowOpacity: 0.1, shadowRadius: 10 },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 240 },
 
   progressCard: { borderRadius: 18, padding: 16, marginBottom: 14, elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   progressTitle: { fontSize: 14, fontWeight: '800' },
-  progressPct: { fontSize: 13, fontWeight: '800', color: '#10B981' },
+  progressPct: { fontSize: 13, fontWeight: '800', color: SUCCESS },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#10B981', borderRadius: 4 },
+  progressFill: { height: '100%', backgroundColor: SUCCESS, borderRadius: 4 },
 
   actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 22 },
-  generateBtn: { flex: 1, backgroundColor: '#FF7A41', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 14, gap: 8, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  generateBtn: { flex: 1, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 14, gap: 8, elevation: 4, shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   generateBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   cleanBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 14, gap: 8, borderWidth: 1 },
-  cleanBtnText: { color: '#10B981', fontSize: 15, fontWeight: '800' },
+  cleanBtnText: { color: SUCCESS, fontSize: 15, fontWeight: '800' },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 5 },
   sectionTitle: { fontSize: 20, fontWeight: '800' },
-  counterBadge: { backgroundColor: '#FF7A4115', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  counterText: { color: '#FF7A41', fontWeight: '700', fontSize: 13 },
+  counterBadge: { backgroundColor: BRAND + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  counterText: { color: PRIMARY, fontWeight: '700', fontSize: 13 },
 
   listCard: { borderRadius: 20, paddingVertical: 4, elevation: 3, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 15, shadowOffset: { width: 0, height: 4 }, borderWidth: 1, overflow: 'hidden' },
   listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1 },
   itemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  checkboxChecked: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  checkboxChecked: { backgroundColor: SUCCESS, borderColor: SUCCESS },
   itemTextContent: { flex: 1, justifyContent: 'center' },
   itemName: { fontSize: 16, fontWeight: '700' },
   itemNameChecked: { color: '#94a3b8', textDecorationLine: 'line-through', fontWeight: '600' },
@@ -310,7 +314,7 @@ const styles = StyleSheet.create({
 
   addExtraContainer: { flexDirection: 'row', paddingHorizontal: 15, paddingVertical: 15, borderBottomWidth: 1, alignItems: 'center' },
   addExtraInput: { flex: 1, height: 45, borderRadius: 12, paddingHorizontal: 15, fontSize: 16, marginRight: 10 },
-  addExtraBtn: { backgroundColor: '#FF7A41', width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  addExtraBtn: { backgroundColor: PRIMARY, width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   deleteExtraBtn: { padding: 8, backgroundColor: '#fef2f2', borderRadius: 10 },
 
   reserveContainer: { borderTopWidth: 1 },
@@ -322,6 +326,6 @@ const styles = StyleSheet.create({
   reserveItemName: { fontSize: 16, fontWeight: '500' },
   reserveActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reactivateBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4, borderWidth: 1 },
-  reactivateBtnText: { color: '#10B981', fontSize: 13, fontWeight: '700' },
+  reactivateBtnText: { color: SUCCESS, fontSize: 13, fontWeight: '700' },
   forgetBtn: { padding: 6, borderRadius: 8 },
 });

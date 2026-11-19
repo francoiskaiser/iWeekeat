@@ -73,20 +73,20 @@ export async function createGroup(uid: string, name: string, displayName: string
     return code;
   }
 
-  throw new Error("Impossible de generer un code de foyer, reessayez.");
+  throw new Error("Impossible de générer un code de foyer, réessaie.");
 }
 
 export async function joinGroup(uid: string, rawCode: string, displayName: string): Promise<string> {
   const db = getDb();
   const code = normalizeCode(rawCode);
   if (code.length !== CODE_LENGTH) {
-    throw new Error(`Un code de foyer contient ${CODE_LENGTH} caracteres.`);
+    throw new Error(`Un code de foyer contient ${CODE_LENGTH} caractères.`);
   }
 
   const ref = doc(db, 'groups', code);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    throw new Error('Aucun foyer ne correspond a ce code.');
+    throw new Error('Aucun foyer ne correspond à ce code.');
   }
 
   const memberUids: string[] = snap.data().memberUids ?? [];

@@ -3,6 +3,7 @@ import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { PRIMARY, SUCCESS } from '@/constants/theme';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
 
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   preset: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
-  presetActive: { backgroundColor: '#FF7A41', borderColor: '#FF7A41' },
+  presetActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   presetText: { fontSize: 14, fontWeight: '800' },
 
   columns: { flexDirection: 'row', gap: 14 },
@@ -183,9 +184,9 @@ const styles = StyleSheet.create({
   columnLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, textAlign: 'center' },
   columnScroll: { height: ROW_HEIGHT * 4 },
   cell: { height: ROW_HEIGHT, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  cellActive: { backgroundColor: '#FF7A41' },
+  cellActive: { backgroundColor: PRIMARY },
   cellText: { fontSize: 20, fontWeight: '700' },
 
-  confirmBtn: { backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 15, alignItems: 'center', marginTop: 18, marginBottom: 8 },
+  confirmBtn: { backgroundColor: SUCCESS, borderRadius: 16, paddingVertical: 15, alignItems: 'center', marginTop: 18, marginBottom: 8 },
   confirmText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

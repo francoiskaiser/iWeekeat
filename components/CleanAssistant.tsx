@@ -2,6 +2,7 @@ import { Modal, StyleSheet, Text, View, TouchableOpacity, SafeAreaView } from "r
 import { Ionicons } from "@expo/vector-icons";
 import { CleanItem } from "@/context/AppContext";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { PRIMARY, SUCCESS } from '@/constants/theme';
 
 interface CleanAssistantProps {
   visible: boolean;
@@ -28,10 +29,10 @@ export function CleanAssistant({
 
   // LOGIQUE VISUELLE INTELLIGENTE
   const isFood = !item.isExtra;
-  const themeColor = isFood ? "#FF7A41" : "#0EA5E9"; // Orange pour la cuisine, Bleu pour la maison
+  const themeColor = isFood ? PRIMARY : "#0EA5E9"; // Orange pour la cuisine, Bleu pour la maison
   const iconName = isFood ? "restaurant-outline" : "home-outline";
-  const questionText = isFood ? "Est-ce qu'il vous reste..." : "Avez-vous encore du...";
-  const locationText = isFood ? "dans vos placards / frigo ?" : "en réserve ?";
+  const questionText = isFood ? "Est-ce qu'il te reste…" : "As-tu encore du…";
+  const locationText = isFood ? "dans tes placards ou ton frigo ?" : "en réserve ?";
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -189,9 +190,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   btnHaveIt: {
-    backgroundColor: '#10B981',
+    backgroundColor: SUCCESS,
     elevation: 4,
-    shadowColor: '#10B981',
+    shadowColor: SUCCESS,
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

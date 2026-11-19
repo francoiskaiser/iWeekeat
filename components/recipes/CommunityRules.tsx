@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { REPORT_THRESHOLD } from '@/utils/recipes';
+import { PRIMARY, SUCCESS, DANGER } from '@/constants/theme';
 
 /**
  * Charte de la communaute. Google Play impose que les utilisateurs acceptent
@@ -12,13 +13,13 @@ import { REPORT_THRESHOLD } from '@/utils/recipes';
  * depuis les parametres.
  */
 export const COMMUNITY_RULES: { icon: string; text: string }[] = [
-  { icon: 'restaurant-outline', text: "Partagez de vraies recettes de cuisine, que vous avez le droit de publier : pas de copie d'un livre ou d'un site sans autorisation." },
-  { icon: 'heart-outline', text: 'Restez respectueux : aucun propos injurieux, haineux, discriminatoire, violent ou à caractère sexuel.' },
+  { icon: 'restaurant-outline', text: "Partage de vraies recettes de cuisine, que tu as le droit de publier : pas de copie d'un livre ou d'un site sans autorisation." },
+  { icon: 'heart-outline', text: 'Reste respectueux : aucun propos injurieux, haineux, discriminatoire, violent ou à caractère sexuel.' },
   { icon: 'megaphone-outline', text: 'Pas de publicité, de spam ni de liens commerciaux.' },
-  { icon: 'lock-closed-outline', text: "N'indiquez aucune information personnelle (adresse, téléphone, e-mail) dans vos recettes." },
-  { icon: 'eye-outline', text: "Vos recettes sont visibles par tous les utilisateurs d'iWeekeat, avec votre prénom." },
+  { icon: 'lock-closed-outline', text: "N'indique aucune information personnelle (adresse, téléphone, e-mail) dans tes recettes." },
+  { icon: 'eye-outline', text: "Tes recettes sont visibles par tous les utilisateurs d'iWeekeat, avec ton prénom." },
   { icon: 'flag-outline', text: `Chacun peut signaler une recette. Après ${REPORT_THRESHOLD} signalements, elle est masquée en attendant une vérification. Un contenu ou un compte qui ne respecte pas cette charte peut être supprimé.` },
-  { icon: 'ban-outline', text: "Vous pouvez bloquer un auteur : ses recettes ne vous sont plus montrées. Les auteurs bloqués se gèrent dans les paramètres." },
+  { icon: 'ban-outline', text: "Tu peux bloquer un auteur : ses recettes ne te sont plus montrées. Les auteurs bloqués se gèrent dans les paramètres." },
 ];
 
 interface Props {
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function CommunityRules({ visible, onClose, onAccept }: Props) {
+  const { accent } = useThemeColors();
   const { background, text, subText, card, border } = useThemeColors();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function CommunityRules({ visible, onClose, onAccept }: Props) {
       <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>Communauté</Text>
+            <Text style={[styles.eyebrow, { color: accent }]}>Communauté</Text>
             <Text style={[styles.title, { color: text }]}>Charte de partage</Text>
           </View>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -62,20 +64,20 @@ export function CommunityRules({ visible, onClose, onAccept }: Props) {
         <ScrollView contentContainerStyle={styles.scroll}>
           {onAccept && (
             <Text style={[styles.intro, { color: subText }]}>
-              Avant de publier votre première recette, merci de lire et d&apos;accepter ces quelques règles.
+              Avant de publier ta première recette, lis et accepte ces quelques règles.
             </Text>
           )}
 
           {COMMUNITY_RULES.map((rule) => (
             <View key={rule.text} style={[styles.rule, { backgroundColor: card, borderColor: border }]}>
-              <Ionicons name={rule.icon as any} size={20} color="#FF7A41" />
+              <Ionicons name={rule.icon as any} size={20} color={accent} />
               <Text style={[styles.ruleText, { color: text }]}>{rule.text}</Text>
             </View>
           ))}
 
           {error && (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color="#ef4444" />
+              <Ionicons name="alert-circle" size={18} color={DANGER} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -95,7 +97,7 @@ export function CommunityRules({ visible, onClose, onAccept }: Props) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 14, paddingBottom: 8 },
-  eyebrow: { fontSize: 13, color: '#FF7A41', fontWeight: '700' },
+  eyebrow: { fontSize: 13, color: PRIMARY, fontWeight: '700' },
   title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   scroll: { paddingHorizontal: 22, paddingBottom: 60, paddingTop: 8 },
   intro: { fontSize: 15, lineHeight: 22, marginBottom: 16 },
@@ -103,6 +105,6 @@ const styles = StyleSheet.create({
   ruleText: { flex: 1, fontSize: 14, lineHeight: 20 },
   errorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 8 },
   errorText: { flex: 1, color: '#b91c1c', fontSize: 14, lineHeight: 19, fontWeight: '600' },
-  acceptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 16, marginTop: 18 },
+  acceptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SUCCESS, borderRadius: 16, paddingVertical: 16, marginTop: 18 },
   acceptText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

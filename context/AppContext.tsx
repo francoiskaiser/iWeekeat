@@ -1,11 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, View } from "react-native";
-import { AppData, CalendarEvent, Category, DayPlan, Dish, Ingredient, Recipe, ShoppingItem } from "@/types";
+import { AppData, CalendarEvent, Category, DayPlan, Dish, Ingredient, Recipe, ShoppingItem, WeekTemplate } from "@/types";
 import { findPantryCategory, categoryLabel } from "@/utils/recipeCategories";
-import { generateId, generateShoppingList } from "@/utils/helpers";
+import { generateId, generateShoppingList, normalizeIngredientName } from "@/utils/helpers";
+import { isExtraItem, keepListInSync, syncFoodItems } from "@/utils/shopping";
 import { loadAppData, loadPendingChanges, saveAppData, savePendingChanges } from "@/utils/storage";
 import { pullGroupData, pushGroupData, subscribeGroupData } from "@/utils/remote";
-import { getUpcomingDateKeys, isDateKeyUpcoming } from "@/utils/date";
+import { getUpcomingDateKeys } from "@/utils/date";
 import { rescheduleReminders } from "@/utils/reminders";
 
 import { useAuth } from "./AuthContext";
@@ -42,6 +43,7 @@ interface AppContextValue {
   removeDayPlan: (dateKey: string, index: number) => void;
   /** Vide entierement la journee. */
   clearDay: (dateKey: string) => void;
+  /** Cree ou actualise la liste ; les cases deja cochees restent cochees. */
   generateList: () => void;
   toggleShoppingItem: (id: string) => void;
   removeShoppingItem: (id: string) => void;
@@ -58,6 +60,12 @@ interface AppContextValue {
   deleteOccurrence: (id: string, dateKey: string) => void;
   addComment: (eventId: string, uid: string, text: string) => void;
   deleteComment: (eventId: string, commentId: string) => void;
+  toggleFavoriteRecipe: (recipeId: string) => void;
+  /** Enregistre les 7 jours donnes (lundi a dimanche) comme semaine type. */
+  saveWeekTemplate: (name: string, weekDateKeys: string[]) => void;
+  /** Applique une semaine type ; seuls les jours donnes (a venir) sont remplis. */
+  applyWeekTemplate: (templateId: string, weekDateKeys: string[], allowedDateKeys: string[]) => void;
+  deleteWeekTemplate: (templateId: string) => void;
   syncing: boolean;
   syncError: string | null;
   syncNow: () => void;
@@ -111,7 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       setSyncError(null);
     } catch {
-      setSyncError('Donnees non synchronisees (hors ligne ?)');
+      setSyncError('Données non synchronisées (hors ligne ?)');
     } finally {
       setSyncing(false);
     }
@@ -179,7 +187,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         pendingRef.current = false;
         setSyncError(null);
       } catch {
-        setSyncError('Modifications enregistrees sur ce telephone uniquement');
+        setSyncError('Modifications enregistrées sur ce téléphone uniquement');
       } finally {
         setSyncing(false);
       }
@@ -237,13 +245,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (kept.length) newWeekPlan[dateKey] = kept;
         else delete newWeekPlan[dateKey];
       }
-      return {
+      return keepListInSync({
         ...prev,
         categories: prev.categories.filter((c) => c.id !== id),
         dishes: prev.dishes.filter((d) => d.categoryId !== id),
         ingredients: prev.ingredients.filter((i) => !dishIds.includes(i.dishId)),
         weekPlan: newWeekPlan,
-      };
+      });
     });
   }, [persist]);
 
@@ -267,29 +275,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (kept.length) newWeekPlan[dateKey] = kept;
         else delete newWeekPlan[dateKey];
       }
-      return {
+      return keepListInSync({
         ...prev,
         dishes: prev.dishes.filter((d) => d.id !== id),
         ingredients: prev.ingredients.filter((i) => i.dishId !== id),
         weekPlan: newWeekPlan,
-      };
+      });
     });
   }, [persist]);
 
   const addIngredient = useCallback((dishId: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    persist((prev) => ({ ...prev, ingredients: [...prev.ingredients, { id: generateId("ing"), dishId, name: trimmed }] }));
+    persist((prev) => keepListInSync({ ...prev, ingredients: [...prev.ingredients, { id: generateId("ing"), dishId, name: trimmed }] }));
   }, [persist]);
 
   const updateIngredient = useCallback((id: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    persist((prev) => ({ ...prev, ingredients: prev.ingredients.map((i) => i.id === id ? { ...i, name: trimmed } : i) }));
+    persist((prev) => keepListInSync({ ...prev, ingredients: prev.ingredients.map((i) => i.id === id ? { ...i, name: trimmed } : i) }));
   }, [persist]);
 
   const deleteIngredient = useCallback((id: string) => {
-    persist((prev) => ({ ...prev, ingredients: prev.ingredients.filter((i) => i.id !== id) }));
+    persist((prev) => keepListInSync({ ...prev, ingredients: prev.ingredients.filter((i) => i.id !== id) }));
   }, [persist]);
 
   const addRecipeToPantry = useCallback((recipe: Recipe) => {
@@ -328,11 +336,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (next.length) weekPlan[dateKey] = next;
       else delete weekPlan[dateKey];
 
-      return {
-        ...prev,
-        weekPlan,
-        shoppingListGenerated: isDateKeyUpcoming(dateKey) ? false : prev.shoppingListGenerated,
-      };
+      return keepListInSync({ ...prev, weekPlan });
     });
   }, [persist]);
 
@@ -357,13 +361,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [writeDay]);
 
   const generateList = useCallback(() => {
-    persist((prev) => {
-      const foodItems = generateShoppingList(prev, getUpcomingDateKeys(prev.weekPlan)).map(
-        (item): ExtendedShoppingItem => ({ ...item, checked: false, isExtra: false })
-      );
-      const extraItems = prev.shoppingList.filter((i) => (i as ExtendedShoppingItem).isExtra);
-      return { ...prev, shoppingList: [...foodItems, ...extraItems], shoppingListGenerated: true };
-    });
+    persist(syncFoodItems);
   }, [persist]);
 
   // MODIFIÉ : Devient plus intelligent pour éviter les doublons et réactiver un élément coché
@@ -424,9 +422,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const startCleanMode = useCallback((): CleanItem[] => {
     if (!data) return [];
     
-    const foodItems = data.shoppingList
-        .filter((i) => !(i as ExtendedShoppingItem).isExtra)
-        .map(i => ({ name: i.name, isExtra: false }));
+    // Tout ce que le menu demande, y compris ce qui avait ete marque "deja au
+    // placard" la fois precedente : le placard a pu se vider depuis.
+    const foodItems = [
+      ...data.shoppingList.filter((i) => !isExtraItem(i)).map((i) => i.name),
+      ...generateShoppingList(data, getUpcomingDateKeys(data.weekPlan)).map((i) => i.name),
+    ].map((name) => ({ name, isExtra: false }));
         
     const recurringExtras = (data.recurringExtras || []).map(name => ({ name, isExtra: true }));
     
@@ -449,7 +450,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const existing = prev.shoppingList.find(i => i.name === item.name);
         return { id: existing?.id || generateId("shop"), name: item.name, checked: false, isExtra: item.isExtra };
       });
-      return { ...prev, shoppingList: newShoppingList };
+      // Les ingredients du menu que l'on a deja ne reviendront pas quand la
+      // liste se mettra a jour toute seule.
+      const keptKeys = new Set(remainingItems.map((i) => normalizeIngredientName(i.name)));
+      const dismissedFood = generateShoppingList(prev, getUpcomingDateKeys(prev.weekPlan))
+        .map((i) => normalizeIngredientName(i.name))
+        .filter((k) => !keptKeys.has(k));
+      return { ...prev, shoppingList: newShoppingList, dismissedFood, shoppingListGenerated: true };
     });
   }, [persist]);
 
@@ -458,13 +465,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const newWeekPlan = { ...prev.weekPlan };
       for (const dateKey of dateKeys) delete newWeekPlan[dateKey];
 
-      const touchesUpcoming = dateKeys.some((k) => isDateKeyUpcoming(k));
-      return {
-        ...prev,
-        weekPlan: newWeekPlan,
-        shoppingList: touchesUpcoming ? [] : prev.shoppingList,
-        shoppingListGenerated: touchesUpcoming ? false : prev.shoppingListGenerated,
-      };
+      return keepListInSync({ ...prev, weekPlan: newWeekPlan });
     });
   }, [persist]);
 
@@ -480,13 +481,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         newWeekPlan[dateKey] = [{ categoryId: dish.categoryId, dishId: dish.id }];
       });
 
-      const touchesUpcoming = dateKeys.some((k) => isDateKeyUpcoming(k));
+      return keepListInSync({ ...prev, weekPlan: newWeekPlan });
+    });
+  }, [persist]);
+
+  const toggleFavoriteRecipe = useCallback((recipeId: string) => {
+    persist((prev) => {
+      const current = prev.favoriteRecipeIds ?? [];
       return {
         ...prev,
-        weekPlan: newWeekPlan,
-        shoppingListGenerated: touchesUpcoming ? false : prev.shoppingListGenerated,
+        favoriteRecipeIds: current.includes(recipeId)
+          ? current.filter((id) => id !== recipeId)
+          : [...current, recipeId],
       };
     });
+  }, [persist]);
+
+  const saveWeekTemplate = useCallback((name: string, weekDateKeys: string[]) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    persist((prev) => {
+      const template: WeekTemplate = {
+        id: generateId("tpl"),
+        name: trimmed,
+        days: weekDateKeys.map((k) => prev.weekPlan[k] ?? []),
+      };
+      return { ...prev, weekTemplates: [...(prev.weekTemplates ?? []), template] };
+    });
+  }, [persist]);
+
+  const applyWeekTemplate = useCallback((templateId: string, weekDateKeys: string[], allowedDateKeys: string[]) => {
+    persist((prev) => {
+      const template = (prev.weekTemplates ?? []).find((t) => t.id === templateId);
+      if (!template) return prev;
+      const weekPlan = { ...prev.weekPlan };
+      weekDateKeys.forEach((dateKey, index) => {
+        if (!allowedDateKeys.includes(dateKey)) return;
+        // Un plat supprime du garde-manger depuis l'enregistrement est ignore.
+        const meals = (template.days[index] ?? []).filter((m) => prev.dishes.some((d) => d.id === m.dishId));
+        // Un jour vide dans le modele ne vide pas un jour deja planifie.
+        if (meals.length) weekPlan[dateKey] = meals;
+      });
+      return keepListInSync({ ...prev, weekPlan });
+    });
+  }, [persist]);
+
+  const deleteWeekTemplate = useCallback((templateId: string) => {
+    persist((prev) => ({ ...prev, weekTemplates: (prev.weekTemplates ?? []).filter((t) => t.id !== templateId) }));
   }, [persist]);
 
   const addEvent = useCallback((event: Omit<CalendarEvent, 'id'>) => {
@@ -558,6 +599,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addIngredient, updateIngredient, deleteIngredient, addRecipeToPantry, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
       removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
       addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment,
+      toggleFavoriteRecipe, saveWeekTemplate, applyWeekTemplate, deleteWeekTemplate,
       syncing, syncError, syncNow,
     };
   }, [
@@ -565,6 +607,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addIngredient, updateIngredient, deleteIngredient, addRecipeToPantry, addDayPlan, removeDayPlan, clearDay, generateList, toggleShoppingItem,
     removeShoppingItem, addExtraItem, deleteExtraByName, startCleanMode, applyCleanResults, resetWeekPlan, randomizeWeek,
     addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment,
+    toggleFavoriteRecipe, saveWeekTemplate, applyWeekTemplate, deleteWeekTemplate,
     syncing, syncError, syncNow,
   ]);
 

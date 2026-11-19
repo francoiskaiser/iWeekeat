@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { PRIMARY, SUCCESS } from '@/constants/theme';
 
 export interface PickerOption {
   label: string;
@@ -36,11 +37,11 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
   selectedValue,
   onValueChange,
   options,
-  placeholder = "Sélectionner...",
+  placeholder = "Sélectionner…",
   enabled = true,
 }, ref) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const { isDarkMode, text, subText, card, border } = useThemeColors();
+  const { isDarkMode, text, subText, card, border, successText } = useThemeColors();
   const sheetBg = card;
   const triggerBg = isDarkMode ? '#0f172a' : '#fff';
 
@@ -74,7 +75,7 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
         <Text style={[styles.triggerText, { color: selectedOption ? text : '#94a3b8' }]}>
           {selectedOption ? selectedOption.label : placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={20} color={enabled ? "#FF7A41" : "#cbd5e1"} />
+        <Ionicons name="chevron-down" size={20} color={enabled ? PRIMARY : "#cbd5e1"} />
       </TouchableOpacity>
 
       {/* LE TIROIR BOTTOM SHEET */}
@@ -120,7 +121,7 @@ export const NativePicker = forwardRef<NativePickerRef, NativePickerProps>(({
                       <Text style={[styles.optionText, { color: text }, isSelected && styles.optionTextSelected]}>
                         {item.label}
                       </Text>
-                      {isSelected && <Ionicons name="checkmark-circle" size={24} color="#10B981" />}
+                      {isSelected && <Ionicons name="checkmark-circle" size={24} color={successText} />}
                     </TouchableOpacity>
                   );
                 }}
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   optionTextSelected: {
-    color: '#10B981', // Vert Frais
+    color: SUCCESS, // Vert Frais
     fontWeight: '700',
   },
   emptyContainer: {

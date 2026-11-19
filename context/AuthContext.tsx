@@ -49,15 +49,15 @@ export function authErrorMessage(error: unknown): string {
     case 'auth/invalid-email':
       return "Cette adresse e-mail n'est pas valide.";
     case 'auth/email-already-in-use':
-      return 'Un compte existe deja avec cette adresse.';
+      return 'Un compte existe déjà avec cette adresse.';
     case 'auth/weak-password':
-      return 'Le mot de passe doit contenir au moins 6 caracteres.';
+      return 'Le mot de passe doit contenir au moins 6 caractères.';
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
     case 'auth/user-not-found':
       return 'Adresse e-mail ou mot de passe incorrect.';
     case 'auth/too-many-requests':
-      return 'Trop de tentatives. Reessayez dans quelques minutes.';
+      return 'Trop de tentatives. Réessaie dans quelques minutes.';
     case 'auth/network-request-failed':
       return 'Pas de connexion internet.';
     default:
@@ -154,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createGroup = useCallback(async (name: string) => {
-    if (!user) throw new Error('Vous devez etre connecte.');
+    if (!user) throw new Error('Tu dois être connecté.');
     const who = user.displayName?.trim() || 'Chef';
     const code = await createGroupDoc(user.uid, name, who);
     await leavePrevious(user.uid, groupId, code);
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, groupId, leavePrevious]);
 
   const joinGroup = useCallback(async (code: string) => {
-    if (!user) throw new Error('Vous devez etre connecte.');
+    if (!user) throw new Error('Tu dois être connecté.');
     const who = user.displayName?.trim() || 'Chef';
     // On rejoint d'abord : un code errone ne doit pas laisser sans foyer.
     const joined = await joinGroupDoc(user.uid, code, who);

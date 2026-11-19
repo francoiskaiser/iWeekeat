@@ -13,11 +13,13 @@ import {
   WEEKDAY_INITIALS, buildMonthMatrix, concerns, eventsOnDate, formatEventTime, monthLabel, parseDateKey,
 } from '@/utils/calendar';
 import { HOUSEHOLD_COLOR } from '@/utils/groups';
+import { PRIMARY, SUCCESS } from '@/constants/theme';
 
 /** Nombre de libelles affichables dans une case du mois avant resume. */
 const MAX_CHIPS_PER_DAY = 2;
 
 export default function CalendarScreen() {
+  const { accent, successText } = useThemeColors();
   const { isDarkMode, background, text, subText, card, border } = useThemeColors();
   const { data, addEvent, updateEvent, deleteEvent, deleteOccurrence, addComment, deleteComment } = useApp();
   const { members, memberColors, user } = useAuth();
@@ -116,7 +118,7 @@ export default function CalendarScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: background }]} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>Votre foyer</Text>
+          <Text style={styles.eyebrow}>Ton foyer</Text>
           <Text style={[styles.title, { color: text }]}>Agenda</Text>
         </View>
         <TouchableOpacity style={styles.todayBtn} onPress={goToday} activeOpacity={0.8}>
@@ -172,11 +174,11 @@ export default function CalendarScreen() {
         {/* NAVIGATION MOIS */}
         <View style={[styles.monthNav, { backgroundColor: card, borderColor: border }]}>
           <TouchableOpacity onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="chevron-back" size={22} color="#FF7A41" />
+            <Ionicons name="chevron-back" size={22} color={accent} />
           </TouchableOpacity>
           <Text style={[styles.monthLabel, { color: text }]}>{monthLabel(cursor.year, cursor.month)}</Text>
           <TouchableOpacity onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="chevron-forward" size={22} color="#FF7A41" />
+            <Ionicons name="chevron-forward" size={22} color={accent} />
           </TouchableOpacity>
         </View>
 
@@ -238,7 +240,7 @@ export default function CalendarScreen() {
                       })}
                       {showMeal && (
                         <View style={styles.chipMeal}>
-                          <Text style={styles.chipMealText} numberOfLines={1}>
+                          <Text style={[styles.chipMealText, { color: successText }]} numberOfLines={1}>
                             {mealName}
                           </Text>
                         </View>
@@ -260,8 +262,8 @@ export default function CalendarScreen() {
             <Text style={[styles.legendText, { color: subText }]}>Tout le foyer</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, { backgroundColor: '#10B98115', borderColor: '#10B981' }]} />
-            <Text style={[styles.legendText, { color: subText }]}>Repas prevu</Text>
+            <View style={[styles.legendSwatch, { backgroundColor: '#10B98115', borderColor: SUCCESS }]} />
+            <Text style={[styles.legendText, { color: subText }]}>Repas prévu</Text>
           </View>
         </View>
 
@@ -270,7 +272,7 @@ export default function CalendarScreen() {
 
         {selectedDishes.length > 0 && (
           <View style={[styles.mealCard, { backgroundColor: card, borderColor: border }]}>
-            <Ionicons name="restaurant" size={18} color="#10B981" />
+            <Ionicons name="restaurant" size={18} color={successText} />
             <Text style={[styles.mealText, { color: text }]}>{selectedDishes.join(' + ')}</Text>
             <Text style={[styles.mealHint, { color: subText }]}>au menu</Text>
           </View>
@@ -279,7 +281,7 @@ export default function CalendarScreen() {
         {dayEvents.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="calendar-outline" size={38} color={subText} />
-            <Text style={[styles.emptyText, { color: subText }]}>Aucun evenement ce jour-la.</Text>
+            <Text style={[styles.emptyText, { color: subText }]}>Aucun événement ce jour-là.</Text>
           </View>
         ) : (
           dayEvents.map((event) => {
@@ -301,7 +303,7 @@ export default function CalendarScreen() {
                   <Text style={[styles.eventMeta, { color: subText }]}>
                     {formatEventTime(event)}
                     {who ? ` · ${who}` : ''}
-                    {event.recurrence !== 'none' ? ' · repete' : ''}
+                    {event.recurrence !== 'none' ? ' · répété' : ''}
                   </Text>
                   {event.location ? (
                     <View style={styles.eventLocation}>
@@ -329,7 +331,7 @@ export default function CalendarScreen() {
 
         <TouchableOpacity style={styles.addBtn} onPress={openNew} activeOpacity={0.85}>
           <Ionicons name="add-circle" size={20} color="#fff" />
-          <Text style={styles.addBtnText}>Ajouter un evenement</Text>
+          <Text style={styles.addBtnText}>Ajouter un événement</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -356,7 +358,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingVertical: 20 },
   eyebrow: { fontSize: 15, color: '#64748b', fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
-  todayBtn: { backgroundColor: '#FF7A41', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
+  todayBtn: { backgroundColor: PRIMARY, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
   todayBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   scroll: { paddingHorizontal: 20, paddingBottom: 120 },
 
@@ -378,17 +380,17 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row' },
   dayCell: { flex: 1, alignItems: 'center', paddingVertical: 2, minHeight: 70 },
   dayInner: { width: 30, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  dayToday: { borderWidth: 2, borderColor: '#FF7A41' },
-  daySelected: { backgroundColor: '#FF7A41' },
+  dayToday: { borderWidth: 2, borderColor: PRIMARY },
+  daySelected: { backgroundColor: PRIMARY },
   dayNum: { fontSize: 13, fontWeight: '700' },
-  dayNumToday: { color: '#FF7A41', fontWeight: '900' },
+  dayNumToday: { color: PRIMARY, fontWeight: '900' },
   dayNumSelected: { color: '#fff', fontWeight: '900' },
 
   chips: { width: '100%', paddingHorizontal: 1, gap: 2, marginTop: 2 },
   chipEvent: { borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
   chipEventText: { fontSize: 9, fontWeight: '800' },
   chipMeal: { backgroundColor: '#10B98115', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
-  chipMealText: { color: '#10B981', fontSize: 9, fontWeight: '800' },
+  chipMealText: { color: SUCCESS, fontSize: 9, fontWeight: '800' },
   chipMore: { fontSize: 9, fontWeight: '800', textAlign: 'center' },
 
   legend: { flexDirection: 'row', gap: 18, justifyContent: 'center', marginTop: 12 },
@@ -413,6 +415,6 @@ const styles = StyleSheet.create({
   eventMeta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   eventNote: { fontSize: 12, marginTop: 4, lineHeight: 17 },
 
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: '#FF7A41', borderRadius: 16, paddingVertical: 15, marginTop: 16, elevation: 4, shadowColor: '#FF7A41', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 15, marginTop: 16, elevation: 4, shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   addBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });

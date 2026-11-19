@@ -2,8 +2,8 @@ import { CalendarEvent } from '@/types';
 import { addDays, getWeekdayIndex, startOfDay, toDateKey } from './date';
 
 export const MONTH_NAMES = [
-  'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre',
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
 
 /** Libelles de colonnes, semaine demarrant le lundi. */
@@ -82,9 +82,9 @@ export function monthLabel(year: number, month: number): string {
   return `${MONTH_NAMES[month]} ${year}`;
 }
 
-/** "14:30 - 15:30", "14:30" ou "Journee entiere". */
+/** "14:30 - 15:30", "14:30" ou "Journée entière". */
 export function formatEventTime(event: CalendarEvent): string {
-  if (event.allDay || !event.startTime) return 'Journee entiere';
+  if (event.allDay || !event.startTime) return 'Journée entière';
   return event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime;
 }
 
